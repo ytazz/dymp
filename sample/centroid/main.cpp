@@ -779,8 +779,8 @@ public:
         //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndPos    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndVel    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndStiff  ), false);
-	    world->solver->Enable(ID(ConTag::CentroidEndPosRange  ), false);
-	    world->solver->Enable(ID(ConTag::CentroidEndContact), false);
+	    //world->solver->Enable(ID(ConTag::CentroidEndPosRange  ), false);
+	    //world->solver->Enable(ID(ConTag::CentroidEndContact), false);
         world->solver->Enable(ID(ConTag::CentroidEndFriction), false);
 	    world->solver->Enable(ID(ConTag::CentroidEndMomentRange), false);
         

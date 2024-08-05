@@ -101,12 +101,37 @@ inline V interpolate_pos_linear_diff(real_t t, real_t t0, V p0, real_t t1, V p1)
 }
 
 template<class V>
+inline V interpolate_pos_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1, V v1){
+	real_t h = t1 - t0;
+	if(h < eps)
+		return p0;
+		
+	real_t s = (t - t0)/h;
+	real_t s2 = s*s;
+	real_t s3 = s2*s;
+	
+    return (1.0 - 3.0*s2 + 2.0*s3) * p0 + ((s - 2.0*s2 + s3)*h) * v0 + (3.0*s2 - 2.0*s3) * p1 + ((-s2 + s3)*h) * v1;
+}
+
+template<class V>
 inline V interpolate_vel_linear_diff(real_t t0, V p0, real_t t1, V p1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return V();
 
 	return (p1 - p0)/h;
+}
+
+template<class V>
+inline V interpolate_vel_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1, V v1){
+	real_t h = t1 - t0;
+	if(h < eps)
+		return V();
+
+	real_t s = (t - t0)/h;
+	real_t s2 = s*s;
+	
+    return (6.0*(s - s2)/h) * (p1 - p0) + (1.0 - 4*s + 3*s2) * v0 + (-2*s + 3*s2) * v1;
 }
 
 inline quat_t interpolate_slerp_int(real_t t, real_t t0, quat_t q0, vec3_t w0){
@@ -140,6 +165,13 @@ inline vec3_t interpolate_angvel_diff(real_t t0, quat_t q0, real_t t1, quat_t q1
 	return q0*w;
 }
 
+struct Interpolate{
+    enum{
+        LinearDiff,
+        Cubic,
+    };
+};
+
 template<class P, class V, class T>
 class curve_t{
 public:
@@ -171,6 +203,10 @@ public:
 			return std::make_pair(idx, idx);
 		return std::make_pair(idx, idx+1);
 	}
+
+    curve_t(){
+        type = Interpolate::LinearDiff;
+    }
 };
 
 template<class V, class T>
@@ -185,14 +221,18 @@ public:
 		std::pair<int,int> seg = this->GetSegment(t);
 		struct base_t::point_t& p0 = this->points[seg.first ];
 		struct base_t::point_t& p1 = this->points[seg.second];
-		return interpolate_pos_linear_diff(t, p0.t, p0.pos, p1.t, p1.pos);
+        if(type == Interpolate::LinearDiff)
+             return interpolate_pos_linear_diff(t, p0.t, p0.pos, p1.t, p1.pos);
+        else return interpolate_pos_cubic(t, p0.t, p0.pos, p0.vel, p1.t, p1.pos, p1.vel);
 	}
 
 	vel_t	CalcVel(real_t t){
 		std::pair<int,int> seg = this->GetSegment(t);
 		struct base_t::point_t& p0 = this->points[seg.first ];
 		struct base_t::point_t& p1 = this->points[seg.second];
-		return interpolate_vel_linear_diff(p0.t, p0.pos, p1.t, p1.pos);
+        if(type == Interpolate::LinearDiff)
+             return interpolate_vel_linear_diff(p0.t, p0.pos, p1.t, p1.pos);
+        else return interpolate_vel_cubic(t, p0.t, p0.pos, p0.vel, p1.t, p1.pos, p1.vel);
 	}
 
 	curve_euclid_t(){

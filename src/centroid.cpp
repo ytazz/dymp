@@ -1184,6 +1184,17 @@ void Centroid::Setup(){
 		curve_vec3_t          curve_weight_pos_r;
 		curve_vec3_t          curve_weight_vel_t;
 		curve_vec3_t          curve_weight_L;
+
+        curve_time           .type = Interpolate::LinearDiff;
+		curve_pos_t          .type = Interpolate::Cubic     ;
+		curve_pos_r          .type = Interpolate::Cubic     ;
+		curve_weight_time    .type = Interpolate::LinearDiff;
+		curve_weight_duration.type = Interpolate::LinearDiff;
+		curve_weight_pos_t   .type = Interpolate::LinearDiff;
+		curve_weight_pos_r   .type = Interpolate::LinearDiff;
+		curve_weight_vel_t   .type = Interpolate::LinearDiff;
+		curve_weight_L       .type = Interpolate::LinearDiff;
+
 		vector<curve_vec3_t>  curve_end_pos_t;
 		vector<curve_vec3_t>  curve_end_pos_r;
 		vector<curve_vec3_t>  curve_end_weight_pos_t ;
@@ -1203,6 +1214,18 @@ void Centroid::Setup(){
 		curve_end_weight_stiff .resize(nend);
 		curve_end_weight_cmp   .resize(nend);
 		curve_end_weight_moment.resize(nend);
+
+        for(int j = 0; j < nend; j++){
+			curve_end_pos_t[j].type = Interpolate::Cubic;
+			curve_end_pos_r[j].type = Interpolate::Cubic;
+			curve_end_weight_pos_t [j].type = Interpolate::LinearDiff;
+			curve_end_weight_pos_r [j].type = Interpolate::LinearDiff;
+			curve_end_weight_vel_t [j].type = Interpolate::LinearDiff;
+			curve_end_weight_vel_r [j].type = Interpolate::LinearDiff;
+			curve_end_weight_stiff [j].type = Interpolate::LinearDiff;
+			curve_end_weight_cmp   [j].type = Interpolate::LinearDiff;
+			curve_end_weight_moment[j].type = Interpolate::LinearDiff;
+		}
 
 		// interpolation of time and weights
 		for(int k = 0; k < (int)waypoints.size(); k++){

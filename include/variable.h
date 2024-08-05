@@ -69,7 +69,7 @@ public:
 		val = val_tmp = 0.0;
 	}
 	virtual void Modify(double alpha){
-		val = val_tmp + alpha * dx[0];
+		val = val_tmp + (alpha*scale) * dx[0];
 	}
 
 	SVar(Solver* solver, ID _id = ID(), real_t _scale = 1.0):VariableImpl(Variable::Scalar, solver, _id, _scale){
@@ -87,8 +87,8 @@ public:
 		val_tmp = Vector2d(0.0, 0.0);
 	}
 	virtual void Modify(double alpha){
-		val[0] = val_tmp[0] + alpha * dx[0];
-		val[1] = val_tmp[1] + alpha * dx[1];
+		val[0] = val_tmp[0] + (alpha*scale) * dx[0];
+		val[1] = val_tmp[1] + (alpha*scale) * dx[1];
 	}
 
 	V2Var(Solver* solver, ID _id = ID(), real_t _scale = 1.0):VariableImpl(Variable::Vec2, solver, _id, _scale){
@@ -106,7 +106,7 @@ public:
 		val_tmp = Vector3d(0.0, 0.0, 0.0);
 	}
 	virtual void Modify(double alpha){
-		val = val_tmp + alpha * dx;
+		val = val_tmp + (alpha*scale) * dx;
 	}
 
 	V3Var(Solver* solver, ID _id = ID(), real_t _scale = 1.0):VariableImpl(Variable::Vec3, solver, _id, _scale){
@@ -127,7 +127,7 @@ public:
 		double dx_norm = dx.norm();
         if(dx_norm < eps)
              val = val_tmp;
-        else val = AngleAxisd(alpha*dx_norm, dx/dx_norm) * val_tmp;
+        else val = AngleAxisd((alpha*scale)*dx_norm, dx/dx_norm) * val_tmp;
 	}
 
 	QVar(Solver* solver, ID _id = ID(), real_t _scale = 1.0):VariableImpl(Variable::Quat, solver, _id, _scale){
