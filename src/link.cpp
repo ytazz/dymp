@@ -2,7 +2,7 @@
 #include <variable.h>
 #include <constraint.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 Link::Link(Variable* v, Constraint* c){
 	var = v;

@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8.12) # Default version on Ubuntu 14.04
 
-project(dimp3)
+project(dymp)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}")
 
-set(DIMP3_BUILD_SAMPLE false CACHE BOOL "build sample programs")
+set(DYMP_BUILD_SAMPLE false CACHE BOOL "build sample programs")
 
 if(WIN32)
   if(NOT CMAKE_DEBUG_POSTFIX)
@@ -27,7 +27,7 @@ find_package(Boost  REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(MKL    REQUIRED)
 
-if(DIMP3_BUILD_SAMPLE)
+if(DYMP_BUILD_SAMPLE)
 	find_package(OpenGL  REQUIRED)
 	find_package(glfw3   REQUIRED)
 endif()
@@ -37,7 +37,7 @@ include_directories(${Boost_INCLUDE_DIR})
 include_directories(${MKL_INCLUDE_DIR})
 #include_directories(${EIGEN3_INCLUDE_DIR})
 
-set(DIMP3_SOURCES
+set(DYMP_SOURCES
   src/blas.cpp
   src/canvas.cpp
   src/centroid.cpp
@@ -54,7 +54,7 @@ set(DIMP3_SOURCES
   src/wholebody.cpp
   src/world.cpp
   )
-set(DIMP3_HEADERS
+set(DYMP_HEADERS
   include/blas.h
   include/canvas.h
   include/centroid.h
@@ -72,48 +72,48 @@ set(DIMP3_HEADERS
   include/world.h
   )
 
-if(DIMP3_BUILD_SAMPLE)
-	set(DIMP3_SOURCES
-		${DIMP3_SOURCES}
+if(DYMP_BUILD_SAMPLE)
+	set(DYMP_SOURCES
+		${DYMP_SOURCES}
 		src/app.cpp
 		)
-	set(DIMP3_HEADERS
-		${DIMP3_HEADERS}
+	set(DYMP_HEADERS
+		${DYMP_HEADERS}
 		include/app.h
 		)	
 endif()
 
-add_library(dimp3
-  ${DIMP3_HEADERS}
-  ${DIMP3_SOURCES}
+add_library(dymp
+  ${DYMP_HEADERS}
+  ${DYMP_SOURCES}
  )
  
-target_link_libraries(dimp3
+target_link_libraries(dymp
 	Eigen3::Eigen
     ${MKL_LIBRARIES}
     ${Boost_LIBRARIES}
 )
-if(DIMP3_BUILD_SAMPLE)
-	target_link_libraries(dimp3
+if(DYMP_BUILD_SAMPLE)
+	target_link_libraries(dymp
 		OpenGL::GL
 	    ${GLFW_LIBRARIES}
 	)
 endif()
 
-install(TARGETS dimp3
-  EXPORT        dimp3Export
+install(TARGETS dymp
+  EXPORT        dympExport
   RUNTIME       DESTINATION bin
   LIBRARY       DESTINATION lib
-  INCLUDES      DESTINATION include/dimp3
-  PUBLIC_HEADER DESTINATION include/dimp3
+  INCLUDES      DESTINATION include/dymp
+  PUBLIC_HEADER DESTINATION include/dymp
   )
 
-install(EXPORT dimp3Export
-  FILE         dimp3Config.cmake
+install(EXPORT dympExport
+  FILE         dympConfig.cmake
   DESTINATION  cmake
   )
 
-if(DIMP3_BUILD_SAMPLE)
+if(DYMP_BUILD_SAMPLE)
 	add_subdirectory(sample)
 endif()
 

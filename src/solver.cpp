@@ -16,7 +16,7 @@
 #include <limits>
 using namespace std;
 
-namespace dimp3{;
+namespace dymp{;
 
 Solver::Param::Param(){
 	verbose         = false;

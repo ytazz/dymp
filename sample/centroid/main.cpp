@@ -8,7 +8,7 @@
  centroidal trajectory planning with unscheduled contact
 */
 
-namespace dimp3{;
+namespace dymp{;
 
 class MyApp : public App{
 public:
@@ -1006,7 +1006,7 @@ public:
 
 // main function
 int main(int argc, const char** argv) {
-    dimp3::MyApp app;
+    dymp::MyApp app;
     app.Init();
     app.Loop();
     app.Cleanup();

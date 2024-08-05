@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace dimp3{;
+namespace dymp{;
 
 /// variable identifiers
 struct VarTag{

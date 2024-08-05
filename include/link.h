@@ -5,7 +5,7 @@
 
 #include <memory>
 
-namespace dimp3{;
+namespace dymp{;
 
 class Variable;
 class Constraint;

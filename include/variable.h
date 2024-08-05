@@ -4,7 +4,7 @@
 #include <id.h>
 #include <util.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class Solver;
 

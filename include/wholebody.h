@@ -7,7 +7,7 @@
 #include <timer.h>
 #include <util.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class  Wholebody;
 struct WholebodyJointPosCon;

@@ -6,7 +6,7 @@
 #include <constraint.h>
 #include <timer.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 Camera::Camera(){
     front = 0.01f;

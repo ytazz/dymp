@@ -1,7 +1,7 @@
 ﻿#include <variable.h>
 #include <solver.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 Variable::Variable(int _type, Solver* solver, ID _id, real_t _scale):ID(_id){
 	solver->AddVar(this);

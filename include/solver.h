@@ -5,7 +5,7 @@
 #include <blas.h>
 #include <timer.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 /** Solver
     - solver for optimization (constraint error minimization) and optimal control problems

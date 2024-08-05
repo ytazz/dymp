@@ -8,7 +8,7 @@ using namespace std;
 
 using namespace Eigen;
 
-namespace dimp3{;
+namespace dymp{;
 
 const real_t eps     = 1.0e-10;
 const real_t _pi     = 3.1415926535;

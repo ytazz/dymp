@@ -4,7 +4,7 @@
 #include <variable.h>
 #include <constraint.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class  Centroid;
 struct CentroidPosConT;

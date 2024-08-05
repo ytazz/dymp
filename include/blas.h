@@ -15,7 +15,7 @@
 #include <Eigen/Eigen>
 using namespace Eigen;
 
-namespace dimp3{;
+namespace dymp{;
 
 struct Vector{
 	int     n;

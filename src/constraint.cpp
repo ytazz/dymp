@@ -3,7 +3,7 @@
 #include <solver.h>
 #include <link.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 Constraint::Constraint(Solver* solver, int n, ID _id, int _type, real_t _scale):ID(_id){
     type       = _type;

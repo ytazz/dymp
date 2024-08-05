@@ -2,7 +2,7 @@
 
 #include <util.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 
 }

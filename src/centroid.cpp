@@ -4,7 +4,7 @@
 #include <util.h>
 #include <rollpitchyaw.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 const real_t damping = 0.0;
 

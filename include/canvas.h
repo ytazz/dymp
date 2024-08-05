@@ -2,7 +2,7 @@
 
 #include <types.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class Model;
 

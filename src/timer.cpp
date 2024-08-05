@@ -7,7 +7,7 @@
 # include <unistd.h>
 #endif
 
-namespace dimp3{;
+namespace dymp{;
 
 void Timer::Sleep(int ms){
 #ifdef _WIN32

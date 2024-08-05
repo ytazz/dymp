@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace dimp3{;
+namespace dymp{;
 
 World::World(){
 	solver = unique_ptr<Solver>(new Solver());

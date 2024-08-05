@@ -3,7 +3,7 @@
 
 using namespace Eigen;
 
-namespace dimp3{
+namespace dymp{
 
 vec3_t ToRollPitchYaw(const quat_t& q){
 	vec3_t angles;

@@ -7,7 +7,7 @@
 using namespace std;
 using namespace Eigen;
 
-namespace dimp3{;
+namespace dymp{;
 namespace render{;
 
 Config::Config(){

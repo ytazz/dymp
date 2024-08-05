@@ -1,4 +1,4 @@
-# dimp3 (DInamics-based Motion Planner version 3)
+# dymp (DYnamics-based Motion Planner version 3)
 
 ## Abstract
 

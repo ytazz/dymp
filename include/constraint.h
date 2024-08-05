@@ -8,7 +8,7 @@
 
 using namespace std;
 
-namespace dimp3{;
+namespace dymp{;
 
 class Solver;
 class SLink;

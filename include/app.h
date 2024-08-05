@@ -5,7 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 struct ButtonState{
     enum{

@@ -2,7 +2,7 @@
 
 #include <Eigen/Eigen>
 
-namespace dimp3{;
+namespace dymp{;
 
 typedef double                     real_t;
 typedef Eigen::Vector2d            vec2_t;

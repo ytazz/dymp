@@ -3,7 +3,7 @@
 #include <types.h>
 #include <canvas.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class World;
 class Solver;

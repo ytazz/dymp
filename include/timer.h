@@ -3,7 +3,7 @@
 #include <map>
 #include <chrono>
 
-namespace dimp3{;
+namespace dymp{;
 
 class Timer{
 public:

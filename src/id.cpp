@@ -1,6 +1,6 @@
 ﻿#include <id.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 const char* VarNames[] = {
 	"any"               ,

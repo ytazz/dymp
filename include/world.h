@@ -4,7 +4,7 @@
 #include <timer.h>
 #include <canvas.h>
 
-namespace dimp3{;
+namespace dymp{;
 
 class Solver;
 class Tick;

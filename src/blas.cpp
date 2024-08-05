@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace dimp3{
+namespace dymp{
 
 using namespace std;
 
