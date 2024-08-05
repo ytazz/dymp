@@ -105,6 +105,8 @@ App::App(){
 
     lastx  = 0;
     lasty  = 0;
+
+    running = false;
 }
 
 App::~App(){
@@ -127,6 +129,9 @@ void App::OnKeyboard(GLFWwindow* window, int key, int scancode, int act, int mod
 
     }
     */
+    if (act==GLFW_PRESS && key==GLFW_KEY_SPACE) {
+        running = !running;
+    }
 }
 
 // mouse button callback
@@ -222,8 +227,10 @@ void App::Loop(){
         // get framebuffer viewport
         glfwGetFramebufferSize(window, &viewport_width, &viewport_height);
 
-        world->Step();
-        OnStep();
+        if(running){
+            world->Step();
+            OnStep();
+        }
 
         glClearColor(1.0f, 0.8f, 1.0f, 1.0f);
 		glClearDepth(1.0); 

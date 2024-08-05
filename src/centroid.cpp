@@ -764,7 +764,7 @@ void CentroidKey::Finish(){
 	
 	//int ndiv = (!cen->phases.empty() ? cen->phases[iphase].ndiv : 1);
 	//var_duration->val = std::min(std::max(cen->param.durationMin/ndiv, var_duration->val), cen->param.durationMax/ndiv);
-	var_duration->val = std::min(std::max(cen->param.durationMin, var_duration->val), cen->param.durationMax);
+	//var_duration->val = std::min(std::max(cen->param.durationMin, var_duration->val), cen->param.durationMax);
 	//DSTR << "time: " << var_time->val << " duration: " << var_duration->val << endl;
 
 	real_t dmax = 0.0;
@@ -1777,6 +1777,56 @@ void Centroid::CreateSnapshot(real_t t){
 	snapshot.Init(this);
 	CalcState(t, snapshot);
 }
+
+void Centroid::DrawSnapshot(render::Canvas* canvas, render::Config* conf) {
+	if (conf->Set(canvas, render::Item::CentroidEnd, this)) {
+		canvas->BeginPath();
+		canvas->MoveTo(snapshot.pos_t);
+		canvas->LineTo(snapshot.pos_t + snapshot.pos_r*vec3_t(0.0, 0.0, 0.3));
+		canvas->EndPath();
+
+		for(int i = 0; i < ends.size(); i++){
+			canvas->BeginLayer("centroid_end_snapshot", true);
+			canvas->SetLineColor("black");
+            canvas->SetLineWidth(1.0f);
+
+			// line connecting com and end
+		    canvas->BeginPath();
+			canvas->MoveTo(snapshot.pos_t);
+			canvas->LineTo(snapshot.pos_t + snapshot.pos_r*ends[i].basePos);
+			canvas->LineTo(snapshot.ends[i].pos_t);
+			canvas->EndPath();
+
+            // line indicating force
+            canvas->SetLineColor("red");
+            canvas->SetLineWidth(1.0f);
+			canvas->BeginPath();
+			canvas->MoveTo(snapshot.ends[i].pos_t);
+			canvas->LineTo(snapshot.ends[i].pos_t + 0.001*snapshot.ends[i].force_t);
+			canvas->EndPath();
+			canvas->EndLayer();
+		}
+
+        // end rectangle
+        for(int i = 0; i < ends.size(); i++){
+            vec3_t vtx[4];
+            vtx[0] = vec3_t(ends[i].copMin.x(), ends[i].copMin.y(), 0.0);
+            vtx[1] = vec3_t(ends[i].copMin.x(), ends[i].copMax.y(), 0.0);
+            vtx[2] = vec3_t(ends[i].copMax.x(), ends[i].copMax.y(), 0.0);
+            vtx[3] = vec3_t(ends[i].copMax.x(), ends[i].copMin.y(), 0.0);
+            canvas->SetLineColor("green");
+            canvas->SetLineWidth(/*snapshot.ends[i].contact ? 2.0f : */1.0f);
+			canvas->BeginPath();
+			canvas->MoveTo(snapshot.ends[i].pos_t + snapshot.ends[i].pos_r*vtx[0]);
+			canvas->LineTo(snapshot.ends[i].pos_t + snapshot.ends[i].pos_r*vtx[1]);
+			canvas->LineTo(snapshot.ends[i].pos_t + snapshot.ends[i].pos_r*vtx[2]);
+			canvas->LineTo(snapshot.ends[i].pos_t + snapshot.ends[i].pos_r*vtx[3]);
+			canvas->LineTo(snapshot.ends[i].pos_t + snapshot.ends[i].pos_r*vtx[0]);
+			canvas->EndPath();
+		}
+	}	
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

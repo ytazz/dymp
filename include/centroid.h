@@ -410,7 +410,8 @@ public:
 	virtual void		PrepareStep();
 	virtual void        Finish ();
 	virtual void        CreateSnapshot(real_t time);
-    virtual void        Draw(render::Canvas* canvas, render::Config* conf);
+    virtual void        DrawSnapshot(render::Canvas* canvas, render::Config* conf);
+	virtual void        Draw        (render::Canvas* canvas, render::Config* conf);
 	
     void SetScaling     ();
 	void CalcState      (real_t t, CentroidData& d);

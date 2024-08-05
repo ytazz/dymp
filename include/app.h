@@ -58,6 +58,7 @@ public:
     render::Config*          conf;
 	std::unique_ptr<render::CanvasGL>  canvasGL;
 	
+    bool   running;
     int    viewport_width, viewport_height;
     bool   button_left, button_middle, button_right;
     bool   mod_shift, mod_alt, mod_ctrl;

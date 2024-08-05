@@ -83,12 +83,12 @@ public:
         //sceneSelect = Scene::Gap;
         //sceneSelect = Scene::Stairs;
         //sceneSelect = Scene::Steps;
-        //taskSelect = Task::Travel;
-        taskSelect = Task::LongJump;
+        taskSelect = Task::Travel;
+        //taskSelect = Task::LongJump;
         //taskSelect = Task::Backflip;
         //taskSelect = Task::Turn;
         //gaitSelect = Gait::WalkWithDoubleSupport;
-        //gaitSelect = Gait::Run;
+        gaitSelect = Gait::Run;
         //gaitSelect = Gait::TrotWithQuadSupport;
         //gaitSelect = Gait::TrotWithoutQuadSupport;
         //gaitSelect = Gait::Pace;
@@ -269,8 +269,8 @@ public:
                 startPos = vec3_t(0.0, 0.0, comHeight);
 		        startOri = vec3_t(0.0, 0.0, 0.0);
                 if(robotSelect == Robot::Biped){
-		            goalPos  = vec3_t(3.0, 0.0, comHeight);
-                    //goalPos  = vec3_t(5.0, 0.0, comHeight);
+		            //goalPos  = vec3_t(3.0, 0.0, comHeight);
+                    goalPos  = vec3_t(5.0, 0.0, comHeight);
                     goalOri  = vec3_t(0.0, 0.0, deg_to_rad(0.0));
 		            //goalOri  = vec3_t(0.0, 0.0, Rad(180.0));
                 }
@@ -779,8 +779,8 @@ public:
         //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndPos    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndVel    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndStiff  ), false);
-	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndPosRange  ), false);
-	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndContact), false);
+	    world->solver->Enable(ID(ConTag::CentroidEndPosRange  ), false);
+	    world->solver->Enable(ID(ConTag::CentroidEndContact), false);
         world->solver->Enable(ID(ConTag::CentroidEndFriction), false);
 	    world->solver->Enable(ID(ConTag::CentroidEndMomentRange), false);
         
