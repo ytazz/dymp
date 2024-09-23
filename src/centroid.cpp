@@ -94,13 +94,6 @@ void CentroidKey::AddVar(Solver* solver) {
 	var_L->weight = damping*one3;
 	solver->AddStateVar(var_L, tick->idx);
 	
-	var_time     = new SVar (solver, ID(VarTag::CentroidTime    , model, name + "_time"    ), cen->scale.t );
-	var_duration = new SVar (solver, ID(VarTag::CentroidDuration, model, name + "_duration"), cen->scale.t );
-	var_time    ->weight[0] = damping;
-	var_duration->weight[0] = damping;
-	solver->AddStateVar(var_time , tick->idx);
-    solver->AddInputVar(var_duration, tick->idx);
-	
 	ends.resize(nend);
 	stringstream ss, ss2;
 	for(int i = 0; i < nend; i++){
@@ -151,6 +144,13 @@ void CentroidKey::AddVar(Solver* solver) {
 		}
 	}
 
+    var_time     = new SVar (solver, ID(VarTag::CentroidTime    , model, name + "_time"    ), cen->scale.t );
+	var_duration = new SVar (solver, ID(VarTag::CentroidDuration, model, name + "_duration"), cen->scale.t );
+	var_time    ->weight[0] = damping;
+	var_duration->weight[0] = damping;
+	solver->AddStateVar(var_time , tick->idx);
+    solver->AddInputVar(var_duration, tick->idx);
+
 	li  .resize(nend);
 	li2 .resize(nend);
 	pi  .resize(nend);
@@ -186,6 +186,7 @@ void CentroidKey::AddVar(Solver* solver) {
 	v_lbar  .resize(ndiv+1);
 	v_tau   .resize(ndiv+1);
 
+	L_v1    .resize(ndiv+1);
 	L_p     .resize(ndiv+1);
 	L_v     .resize(ndiv+1);
 	L_tau   .resize(ndiv+1);
@@ -352,22 +353,30 @@ void CentroidKey::AddCon(Solver* solver) {
 		
 		/// contact force constraints
 		if(next){
-			ends[i].con_friction = new CentroidEndFrictionCon(solver, name + "_friction", this, i, cen->scale.pt);
-			solver->AddCostCon(ends[i].con_friction, tick->idx);
+			real_t sc;
+			sc = (cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness ? cen->scale.pt : cen->scale.ft);
+			ends[i].con_friction[0][0] = new CentroidEndFrictionCon(solver, name + "_friction", this, i, 0, 0, sc);
+			ends[i].con_friction[0][1] = new CentroidEndFrictionCon(solver, name + "_friction", this, i, 0, 1, sc);
+			ends[i].con_friction[1][0] = new CentroidEndFrictionCon(solver, name + "_friction", this, i, 1, 0, sc);
+			ends[i].con_friction[1][1] = new CentroidEndFrictionCon(solver, name + "_friction", this, i, 1, 1, sc);
+			solver->AddCostCon(ends[i].con_friction[0][0], tick->idx);
+			solver->AddCostCon(ends[i].con_friction[0][1], tick->idx);
+			solver->AddCostCon(ends[i].con_friction[1][0], tick->idx);
+			solver->AddCostCon(ends[i].con_friction[1][1], tick->idx);
 			
-			//ends[i].con_moment[0][0] = new CentroidEndMomentCon  (solver, name + "_moment00", this, i,  ex, cen->scale.pt2);
-			//ends[i].con_moment[1][0] = new CentroidEndMomentCon  (solver, name + "_moment10", this, i,  ey, cen->scale.pt2);
-			//ends[i].con_moment[2][0] = new CentroidEndMomentCon  (solver, name + "_moment20", this, i,  ez, cen->scale.pt2);
-			//ends[i].con_moment[0][1] = new CentroidEndMomentCon  (solver, name + "_moment01", this, i, -ex, cen->scale.pt2);
-			//ends[i].con_moment[1][1] = new CentroidEndMomentCon  (solver, name + "_moment11", this, i, -ey, cen->scale.pt2);
-			//ends[i].con_moment[2][1] = new CentroidEndMomentCon  (solver, name + "_moment21", this, i, -ez, cen->scale.pt2);
-
-			//solver->AddCostCon(ends[i].con_moment[0][0], tick->idx);
-			//solver->AddCostCon(ends[i].con_moment[1][0], tick->idx);
-			//solver->AddCostCon(ends[i].con_moment[2][0], tick->idx);
-			//solver->AddCostCon(ends[i].con_moment[0][1], tick->idx);
-			//solver->AddCostCon(ends[i].con_moment[1][1], tick->idx);
-			//solver->AddCostCon(ends[i].con_moment[2][1], tick->idx);
+			sc = (cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness ? cen->scale.pt2 : cen->scale.fr);
+			ends[i].con_moment[0][0] = new CentroidEndMomentCon  (solver, name + "_moment00", this, i, 0, 0, sc);
+			ends[i].con_moment[0][1] = new CentroidEndMomentCon  (solver, name + "_moment01", this, i, 0, 1, sc);
+			ends[i].con_moment[1][0] = new CentroidEndMomentCon  (solver, name + "_moment10", this, i, 1, 0, sc);
+			ends[i].con_moment[1][1] = new CentroidEndMomentCon  (solver, name + "_moment11", this, i, 1, 1, sc);
+			ends[i].con_moment[2][0] = new CentroidEndMomentCon  (solver, name + "_moment20", this, i, 2, 0, sc);
+			ends[i].con_moment[2][1] = new CentroidEndMomentCon  (solver, name + "_moment21", this, i, 2, 1, sc);
+			solver->AddCostCon(ends[i].con_moment[0][0], tick->idx);
+			solver->AddCostCon(ends[i].con_moment[0][1], tick->idx);
+			solver->AddCostCon(ends[i].con_moment[1][0], tick->idx);
+			solver->AddCostCon(ends[i].con_moment[1][1], tick->idx);
+			solver->AddCostCon(ends[i].con_moment[2][0], tick->idx);
+			solver->AddCostCon(ends[i].con_moment[2][1], tick->idx);
 		}
         
         ends[i].con_contact.resize(nface);
@@ -378,7 +387,6 @@ void CentroidKey::AddCon(Solver* solver) {
         }
 	}
 }
-
 
 void CentroidKey::Prepare() {
 	tick->time = var_time->val;
@@ -403,7 +411,8 @@ void CentroidKey::Prepare() {
 		dend.vel_t = end.var_vel_t->val;
 		dend.vel_r = end.var_vel_r->val;
 	
-		dend.iface = dend_des.iface;
+		dend.state = dend_des.state;
+        dend.iface = dend_des.iface;
 		if(next){
 			if(cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness){	
 				dend.stiff  = end.var_stiff ->val;
@@ -447,9 +456,9 @@ void CentroidKey::Prepare() {
 		// to avoid singularity in flight phase
 		l2sum = eps2*eps2;
 		
-		psum = vec3_t::Zero();
-		rsum = vec3_t::Zero();
-		data.etabar = vec3_t::Zero();
+		psum = zero3;
+		rsum = zero3;
+		data.etabar = zero3;
 		for(int i = 0; i < nend; i++){
 			li [i] = data.ends[i].stiff;
 			li2[i] = li[i]*li[i];
@@ -488,8 +497,8 @@ void CentroidKey::Prepare() {
 		}
 	}
 	else{
-		data.fsum   = vec3_t::Zero();
-		data.etasum = vec3_t::Zero();
+		data.fsum   = zero3;
+		data.etasum = zero3;
 		for(int i = 0; i < nend; i++){
 			data.fsum   += fi[i];
 			data.etasum += pi[i].cross(fi[i]) + etai[i];
@@ -540,6 +549,18 @@ void CentroidKey::Prepare2(){
 		data.ends[i].pos_t_land_local = d1.pos_r.conjugate()*(d1.ends[i].pos_t - d1.pos_t);
 		data.ends[i].pos_r_land_local = d1.pos_r.conjugate()*d1.ends[i].pos_r;
 	}
+    for(int i = 0; i < nend; i++){
+		CentroidKey* km1 = (prev && ((CentroidKey*)prev)->data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)prev : this;
+		CentroidKey* k1  = (next && data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)next : this;
+
+		CentroidData& dm1 = km1->data;
+		CentroidData& d1  = k1 ->data;
+
+		vec3_t anglem1 = ToRollPitchYaw(dm1.ends[i].pos_r);
+		vec3_t angle1  = ToRollPitchYaw(d1 .ends[i].pos_r);
+		data.ends[i].vel_t_ave = (d1.ends[i].pos_t - dm1.ends[i].pos_t)/(d1.time - dm1.time);
+		data.ends[i].vel_r_ave = (angle1 - anglem1)/(d1.time - dm1.time);
+	}
 }
 
 void CentroidKey::PrepareStep(){
@@ -553,7 +574,7 @@ void CentroidKey::PrepareStep(){
 	}
 
 	q_q = R_omega[0];
-	q_tau = vec3_t::Zero();
+	q_tau = zero3;
 	for(int k = 0; k < ndiv; k++){
 		mat3_t tmp = R_omega[k+1]*rot_jacobian(data.w_rhs[k]*dtau);
 		q_L1[k] = tmp*data.Iinv[k]*dtau;
@@ -610,10 +631,10 @@ void CentroidKey::PrepareStep(){
 		}
 		
 		L_L    =  1;
-		L_v1   = -m*rbar_cross;
 		for(int k = 0; k <= ndiv; k++){
+			L_v1    [k] = (k == 0 ? mat3_t::Zero() : mat3_t(-m*rbar_cross));
 			L_p     [k] = mat3_t::Zero();
-			L_v     [k] = m*rbar_cross;
+			L_v     [k] = (k == 0 ? mat3_t::Zero() : mat3_t( m*rbar_cross));
 			L_rbar  [k] = m*(cross_mat(data.v_rhs[k] - data.vel_t));
 			L_etabar[k] = m*t[k];
 			L_tau   [k] = m*((real_t)k/(real_t)ndiv)*data.etabar;
@@ -625,7 +646,7 @@ void CentroidKey::PrepareStep(){
 		p_tau = p_C*C_tau[ndiv] + p_S*S_tau[ndiv];
 		for(int i = 0; i < nend; i++){
 			p_li[i] = 
-				(p_C*C_lbar[ndiv] + p_S*S_lbar[ndiv])*lbar_li[i] +
+				(p_C*C_lbar[ndiv] + p_S*S_lbar[ndiv] + p_lbar)*lbar_li[i] +
 				 p_pbar*(pbar_lbar*lbar_li[i] + pbar_li[i]) +
 				 p_rbar*(rbar_lbar*lbar_li[i] + rbar_li[i]);
 			p_pi[i] = p_pbar*pbar_pi[i];
@@ -639,7 +660,7 @@ void CentroidKey::PrepareStep(){
 		for(int i = 0; i < nend; i++){
 			for(int k = 0; k <= ndiv; k++){
 				v_li[i][k] = 
-					(v_C*C_lbar[k] + v_S*S_lbar[k])*lbar_li[i] +
+					(v_C*C_lbar[k] + v_S*S_lbar[k] + v_lbar[k])*lbar_li[i] +
 					 v_pbar[k]*(pbar_lbar*lbar_li[i] + pbar_li[i]) +
 					 v_rbar[k]*(rbar_lbar*lbar_li[i] + rbar_li[i]);
 				v_pi[i][k] = v_pbar[k]*pbar_pi[i];
@@ -649,29 +670,29 @@ void CentroidKey::PrepareStep(){
 		}
 		// L' coef
 		for(int k = 0; k <= ndiv; k++){
-			L_p  [k] += L_v1*v_p  [k];
-			L_v  [k] += L_v1*v_v  [k];
-			L_tau[k] += L_v1*v_tau[k];
+			L_p  [k] += L_v1[k]*v_p  [k];
+			L_v  [k] += L_v1[k]*v_v  [k];
+			L_tau[k] += L_v1[k]*v_tau[k];
 		}
 		for(int i = 0; i < nend; i++){
 			for(int k = 0; k <= ndiv; k++){
 				L_li[i][k] = 
-					L_v1*v_li[i][k] +
+					L_v1[k]*v_li[i][k] +
 					L_rbar  [k]*(rbar_li[i] + rbar_lbar*lbar_li[i]);
 					L_etabar[k]*(
 						etabar_li[i] + 
-						(etabar_lbar + etabar_pbar*pbar_lbar + etabar_rbar*rbar_lbar)*lbar_li[i] +
-						etabar_pbar*pbar_li[i] +
-						etabar_rbar*rbar_li[i]
+						etabar_lbar*lbar_li[i] +
+						etabar_pbar*(pbar_lbar*lbar_li[i] + pbar_li[i]) +
+						etabar_rbar*(rbar_lbar*lbar_li[i] + rbar_li[i])
 						);
 				L_pi[i][k] = 
-					L_v1*v_pi[i][k] +
+					L_v1[k]*v_pi[i][k] +
 					L_etabar[k]*(etabar_pi[i] + etabar_pbar*pbar_pi[i]);
 				L_vi[i][k] = 
-					L_v1*v_vi[i][k] +
+					L_v1[k]*v_vi[i][k] +
 					L_etabar[k]*(etabar_vi[i] + etabar_pbar*pbar_vi[i]);
 				L_ri[i][k] = 
-					L_v1*v_ri[i][k] +
+					L_v1[k]*v_ri[i][k] +
 					L_rbar  [k]*rbar_ri[i] +
 					L_etabar[k]*(etabar_ri[i] + etabar_rbar*rbar_ri[i]);
 				L_etai[i][k] = 
@@ -764,7 +785,7 @@ void CentroidKey::Finish(){
 	
 	//int ndiv = (!cen->phases.empty() ? cen->phases[iphase].ndiv : 1);
 	//var_duration->val = std::min(std::max(cen->param.durationMin/ndiv, var_duration->val), cen->param.durationMax/ndiv);
-	//var_duration->val = std::min(std::max(cen->param.durationMin, var_duration->val), cen->param.durationMax);
+	var_duration->val = std::min(std::max(cen->param.durationMin, var_duration->val), cen->param.durationMax);
 	//DSTR << "time: " << var_time->val << " duration: " << var_duration->val << endl;
 
 	real_t dmax = 0.0;
@@ -811,18 +832,19 @@ Centroid::Param::Param() {
     bodyRangeMin = vec3_t(-0.1, -0.1, -0.1);
     bodyRangeMax = vec3_t( 0.1,  0.1,  0.1);
 
-    swingSlope  = 1.0;
     swingHeight = 0.05;
+	swingSlope  = 0.0;
+    swingLiftMargin = 0.0;
+	swingLandMargin = 0.0;
+	swingTurnMargin = 0.0;
 
 	contactMargin = 0.0;
-	contactSwitchCost = 0.0;
-	contactFaceSwitchCost = 0.0;
 
 	complWeight = 100.0;
 
 	enableRotation   = true;
 	rotationResolution = 1;
-	endInterpolation         = EndInterpolation::Global;
+	endInterpolation         = EndInterpolation::CycloidGlobal;
 	endWrenchParametrization = EndWrenchParametrization::Stiffness;
 }
 
@@ -1462,20 +1484,26 @@ void Centroid::Setup(){
 					end.con_des_force ->weight = (dend.iface != -1 ? dend.force_weight  : param.complWeight*one3);
 					end.con_des_moment->weight = (dend.iface != -1 ? dend.moment_weight : param.complWeight*one3);
 				}
-				key->ends[i].con_friction    ->weight[0] = 0.1;
-				key->ends[i].con_friction    ->barrier_margin = 0.00001;
-				//key->ends[i].con_moment[0][0]->weight[0] = 1.0;
-				//key->ends[i].con_moment[1][0]->weight[0] = 1.0;
-				//key->ends[i].con_moment[2][0]->weight[0] = 1.0;
-				//key->ends[i].con_moment[0][1]->weight[0] = 1.0;
-				//key->ends[i].con_moment[1][1]->weight[0] = 1.0;
-				//key->ends[i].con_moment[2][1]->weight[0] = 1.0;
-				//key->ends[i].con_moment[0][0]->barrier_margin = 0.0001;
-				//key->ends[i].con_moment[1][0]->barrier_margin = 0.0001;
-				//key->ends[i].con_moment[2][0]->barrier_margin = 0.0001;
-				//key->ends[i].con_moment[0][1]->barrier_margin = 0.0001;
-				//key->ends[i].con_moment[1][1]->barrier_margin = 0.0001;
-				//key->ends[i].con_moment[2][1]->barrier_margin = 0.0001;
+				key->ends[i].con_friction[0][0]->weight[0] = 0.1;
+				key->ends[i].con_friction[0][1]->weight[0] = 0.1;
+				key->ends[i].con_friction[1][0]->weight[0] = 0.1;
+				key->ends[i].con_friction[1][1]->weight[0] = 0.1;
+				key->ends[i].con_friction[0][0]->barrier_margin = 0.00001;
+				key->ends[i].con_friction[0][1]->barrier_margin = 0.00001;
+				key->ends[i].con_friction[1][0]->barrier_margin = 0.00001;
+				key->ends[i].con_friction[1][1]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[0][0]->weight[0] = 1.0;
+				key->ends[i].con_moment[0][1]->weight[0] = 1.0;
+				key->ends[i].con_moment[1][0]->weight[0] = 1.0;
+				key->ends[i].con_moment[1][1]->weight[0] = 1.0;
+				key->ends[i].con_moment[2][0]->weight[0] = 1.0;
+				key->ends[i].con_moment[2][1]->weight[0] = 1.0;
+				key->ends[i].con_moment[0][0]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[0][1]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[1][0]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[1][1]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[2][0]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[2][1]->barrier_margin = 0.0001;
 			}
 
 			for(int j = 0; j < nface; j++){
@@ -1593,6 +1621,8 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 
 		d.pos_r = d0.pos_r;
 		d.L     = d0.L;
+        if(d.Llocal.empty())
+			d.Llocal.push_back(d0.Llocal[0]);
 
 		for(int i = 0; i < nend; i++){
 			d.ends[i].pos_t = d0.ends[i].pos_t;
@@ -1637,71 +1667,127 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 		
 		d.vel_r = d0.Iinv[idiv]*(d.L - d0.Llocal[idiv]);
 
+        if(d.Llocal.empty())
+			d.Llocal.push_back(d0.Llocal[idiv]);
+
 		for(int i = 0; i < nend; i++){
-			if(d0.ends[i].iface == -1){			
-				const real_t _2pi = 2.0*_pi;
-				const real_t tmargin = 0.05;
-				real_t tau = (d1.ends[i].t_land - d0.ends[i].t_lift) - 2.0*tmargin;
-				real_t s   = std::min(std::max(0.0, (t - (d0.ends[i].t_lift + tmargin))/tau), 1.0);
-				real_t ch  = (s - sin(_2pi*s)/_2pi);
-				real_t chd = ((1.0 - cos(_2pi*s))/tau);
-				real_t cv  = (1 - cos(_2pi*s))/2.0;
-				real_t cvd = (_2pi*sin(_2pi*s)/(2.0*tau));
+			if(d0.ends[i].state == ContactState::Free){
+				if(param.endInterpolation == EndInterpolation::Polynomial){
+					real_t t0, t1, _t;
+					t0 = (d0.ends[i].t_lift + param.swingLiftMargin < d0.time ? d0.time : d0.ends[i].t_lift + param.swingLiftMargin);
+					t1 = (d1.ends[i].t_land - param.swingLandMargin > d1.time ? d1.time : d1.ends[i].t_land - param.swingLandMargin);
+					_t = std::min(std::max(t0, t), t1);
 
-				real_t sw = param.swingHeight;
-				vec3_t nx = d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift;
-				vec3_t ny;
-				vec3_t nz(0.0, 0.0, 1.0);
-				real_t nxnorm = nx.norm();
+					d.ends[i].pos_t = interpolate_pos_cubic(_t, t0, d0.ends[i].pos_t, d0.ends[i].vel_t_ave, t1, d1.ends[i].pos_t, d1.ends[i].vel_t_ave);
+					d.ends[i].vel_t = interpolate_pos_cubic(_t, t0, d0.ends[i].pos_t, d0.ends[i].vel_t_ave, t1, d1.ends[i].pos_t, d1.ends[i].vel_t_ave);
+					
+					t0 = (d0.ends[i].t_lift + param.swingTurnMargin < d0.time ? d0.time : d0.ends[i].t_lift + param.swingTurnMargin);
+					t1 = (d1.ends[i].t_land - param.swingTurnMargin > d1.time ? d1.time : d1.ends[i].t_land - param.swingTurnMargin);
+					_t = std::min(std::max(t0, t), t1);
 
-				if(nxnorm > eps){
-					nx = nx/nxnorm;
-					ny = nz.cross(nx);
-					nz = nx.cross(ny);
-				}
-			
-				if(param.endInterpolation == EndInterpolation::Local){
-					vec3_t pe = d0.ends[i].pos_t_lift_local + ch *(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cv *sw)*nz;
-					vec3_t ve =                               chd*(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cvd*sw)*nz;
-
-					AngleAxisd qrel(d0.ends[i].pos_r_lift_local.conjugate()*d1.ends[i].pos_r_land_local);
-					vec3_t axis   = qrel.axis ();
-					real_t theta  = qrel.angle();
-					if(theta > _pi)
-						theta -= 2*_pi;
-				
-					quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
-					vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
-
-					d.ends[i].pos_t = d.pos_t + d.pos_r*pe;
-					d.ends[i].pos_r = d.pos_r*qe;
-					d.ends[i].vel_t = d.vel_t + d.pos_r*ve + d.vel_r.cross(d.pos_r*pe);
-					d.ends[i].vel_r = d.vel_r + d.pos_r*we;
+					vec3_t angle = interpolate_pos_cubic(_t, 
+						t0, ToRollPitchYaw(d0.ends[i].pos_r), d0.ends[i].vel_r_ave, 
+						t1, ToRollPitchYaw(d1.ends[i].pos_r), d1.ends[i].vel_r_ave);
+					vec3_t angled = interpolate_vel_cubic(_t, 
+						t0, ToRollPitchYaw(d0.ends[i].pos_r), d0.ends[i].vel_r_ave, 
+						t1, ToRollPitchYaw(d1.ends[i].pos_r), d1.ends[i].vel_r_ave);
+					d.ends[i].pos_r = FromRollPitchYaw(angle);
+					d.ends[i].vel_r = VelocityFromRollPitchYaw(angle, angled);
+					//d.ends[i].pos_r = InterpolateOri   (t, d0.time, d0.ends[i].pos_r, vec3_t(), d1.time, d1.ends[i].pos_r, vec3_t(), Interpolate::SlerpDiff);
+					//d.ends[i].vel_r = InterpolateAngvel(t, d0.time, d0.ends[i].pos_r, vec3_t(), d1.time, d1.ends[i].pos_r, vec3_t(), Interpolate::SlerpDiff);
 				}
 				else{
-					vec3_t pe = d0.ends[i].pos_t_lift + ch *(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cv *sw)*nz;
-					vec3_t ve =                         chd*(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cvd*sw)*nz;
+				    const real_t _2pi = 2.0*_pi;
+				    const real_t tmargin = 0.05;
+				    real_t tau = (d1.ends[i].t_land - d0.ends[i].t_lift) - 2.0*tmargin;
+				    real_t s   = std::min(std::max(0.0, (t - (d0.ends[i].t_lift + tmargin))/tau), 1.0);
+				    real_t ch  = (s - sin(_2pi*s)/_2pi);
+				    real_t chd = ((1.0 - cos(_2pi*s))/tau);
+				    real_t cv  = (1 - cos(_2pi*s))/2.0;
+				    real_t cvd = (_2pi*sin(_2pi*s)/(2.0*tau));
 
-					AngleAxisd qrel(d0.ends[i].pos_r_lift.conjugate()*d1.ends[i].pos_r_land);
-					vec3_t axis   = qrel.axis ();
-					real_t theta  = qrel.angle();
-					if(theta > _pi)
-						theta -= 2*_pi;
+				    real_t sw = param.swingHeight;
+				    vec3_t nx = d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift;
+				    vec3_t ny;
+				    vec3_t nz(0.0, 0.0, 1.0);
+				    real_t nxnorm = nx.norm();
+
+				    if(nxnorm > eps){
+					    nx = nx/nxnorm;
+					    ny = nz.cross(nx);
+					    nz = nx.cross(ny);
+				    }
+			
+				    if(param.endInterpolation == EndInterpolation::CycloidLocal){
+					    vec3_t pe = d0.ends[i].pos_t_lift_local + ch *(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cv *sw)*nz;
+					    vec3_t ve =                               chd*(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cvd*sw)*nz;
+
+					    AngleAxisd qrel(d0.ends[i].pos_r_lift_local.conjugate()*d1.ends[i].pos_r_land_local);
+					    vec3_t axis   = qrel.axis ();
+					    real_t theta  = qrel.angle();
+					    if(theta > _pi)
+						    theta -= 2*_pi;
 				
-					quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
-					vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
+					    quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
+					    vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
 
-					d.ends[i].pos_t = pe;
-					d.ends[i].pos_r = qe;
-					d.ends[i].vel_t = ve;
-					d.ends[i].vel_r = we;
-				}
+					    d.ends[i].pos_t = d.pos_t + d.pos_r*pe;
+					    d.ends[i].pos_r = d.pos_r*qe;
+					    d.ends[i].vel_t = d.vel_t + d.pos_r*ve + d.vel_r.cross(d.pos_r*pe);
+					    d.ends[i].vel_r = d.vel_r + d.pos_r*we;
+				    }
+				    else{
+					    /*
+						(p1 - p0)*(p0 + s(p1 - p0) - pc) = 0
+						s = (pc - p0)*(p1 - p0)/||p1 - p0||^2
+						*/
+						// calc side sway based on distance between straight swing line and support foot
+						vec2_t p0(d0.ends[i].pos_t_lift.x(), d0.ends[i].pos_t_lift.y());
+						vec2_t p1(d1.ends[i].pos_t_land.x(), d1.ends[i].pos_t_land.y());
+						vec2_t psup(d0.ends[!i].pos_t.x(), d0.ends[!i].pos_t.y());
+						vec2_t swh;
+						/*real_t s = (psup - p0)*(p1 - p0)/(p1 - p0).square();
+						if(0.0 < s && s < 1.0){
+							vec2_t psup_proj = p0 + s*(p1 - p0);
+							const real_t th = 0.1;
+							real_t r = (psup_proj - psup).norm();
+							if(r < th){
+								swh = ((th - r)/r)*(psup_proj - psup);
+							}
+						}*/
+						
+						vec3_t pe = d0.ends[i].pos_t_lift + ch *(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cv *sw)*nz + (cv )*vec3_t(swh.x(), swh.y(), 0.0);
+						vec3_t ve =                         chd*(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cvd*sw)*nz + (cvd)*vec3_t(swh.x(), swh.y(), 0.0);
+
+						AngleAxisd qrel(d0.ends[i].pos_r_lift.conjugate()*d1.ends[i].pos_r_land);
+					    vec3_t axis   = qrel.axis ();
+					    real_t theta  = qrel.angle();
+					    if(theta > _pi)
+						    theta -= 2*_pi;
+								
+						quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
+						vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
+
+						d.ends[i].pos_t = pe;
+						d.ends[i].pos_r = qe;
+						d.ends[i].vel_t = ve;
+						d.ends[i].vel_r = we;
+				    }
+                }
 			}
-			else{
+			// surface contact
+			else if(d0.ends[i].state == ContactState::Surface && d1.ends[i].state == ContactState::Surface){
 				d.ends[i].pos_t = d0.ends[i].pos_t;
 				d.ends[i].pos_r = d0.ends[i].pos_r;
 				d.ends[i].vel_t = d0.ends[i].vel_t;
 				d.ends[i].vel_r = d0.ends[i].vel_r;
+			}
+			// other contact
+			else{
+				d.ends[i].pos_t = interpolate_pos_linear_diff(t, d0.time, d0.ends[i].pos_t, d1.time, d1.ends[i].pos_t);
+				d.ends[i].vel_t = interpolate_vel_linear_diff(   d0.time, d0.ends[i].pos_t, d1.time, d1.ends[i].pos_t);
+				d.ends[i].pos_r = interpolate_slerp_diff     (t, d0.time, d0.ends[i].pos_r, d1.time, d1.ends[i].pos_r);
+				d.ends[i].vel_r = interpolate_angvel_diff    (   d0.time, d0.ends[i].pos_r, d1.time, d1.ends[i].pos_r);
 			}
 		}
 	}
@@ -1849,7 +1935,6 @@ void Centroid::DrawSnapshot(render::Canvas* canvas, render::Config* conf) {
 		}
 	}	
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2021,35 +2106,35 @@ CentroidEndContactCon::CentroidEndContactCon(Solver* solver, string _name, Centr
 	AddR3Link(obj->ends[iend].var_pos_t);
 }
 
-CentroidEndFrictionCon::CentroidEndFrictionCon(Solver* solver, string _name, CentroidKey* _obj, int _iend, real_t _scale):
+CentroidEndFrictionCon::CentroidEndFrictionCon(Solver* solver, string _name, CentroidKey* _obj, int _iend, int _dir, int _side, real_t _scale):
 	Constraint(solver, 1, ID(ConTag::CentroidEndFriction, _obj->model, _name), Constraint::Type::InequalityBarrier, _scale){
-	obj   = _obj;
-	iend  = _iend;
+	obj  = _obj;
+	iend = _iend;
+    dir  = _dir;
+	side = _side;
     
 	if(obj->cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness){
 		AddR3Link(obj->var_pos_t);
 		AddR3Link(obj->ends[iend].var_pos_t);
 		AddR3Link(obj->ends[iend].var_vel_t);
-		//AddR3Link(obj->ends[iend].var_pos_r);
-		AddSLink(obj->ends[iend].var_cmp[0]);
-		AddSLink(obj->ends[iend].var_cmp[1]);
+		AddSLink (obj->ends[iend].var_cmp[0]);
+		AddSLink (obj->ends[iend].var_cmp[1]);
 	}
 	else{
 		AddR3Link(obj->ends[iend].var_force);
 	}
 }
 
-CentroidEndMomentCon::CentroidEndMomentCon(Solver* solver, string _name, CentroidKey* _obj, int _iend, vec3_t _dir, real_t _scale):
+CentroidEndMomentCon::CentroidEndMomentCon(Solver* solver, string _name, CentroidKey* _obj, int _iend, int _dir, int _side, real_t _scale):
 	Constraint(solver, 1, ID(ConTag::CentroidEndMomentRange, _obj->model, _name), Constraint::Type::InequalityBarrier, _scale){
 	obj   = _obj;
 	iend  = _iend;
-    //idx   = _idx;
-	dir   = _dir;
+    dir   = _dir;
+	side  = _side;
     
 	if(obj->cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness){
 		AddR3Link(obj->var_pos_t);
 		AddR3Link(obj->ends[iend].var_pos_t );
-		AddR3Link(obj->ends[iend].var_pos_r );
 		AddSLink (obj->ends[iend].var_cmp[0]);
 		AddSLink (obj->ends[iend].var_cmp[1]);
 		AddR3Link(obj->ends[iend].var_moment);
@@ -2148,15 +2233,26 @@ void CentroidEndFrictionCon::Prepare(){
 		 f = obj->data.pos_t - (obj->pi[iend] + obj->ri[iend]);
 	else f = obj->fi[iend];
 
-	ft = vec2_t(f.x(), f.y());
+	mu = obj->cen->param.mu;
+	qi = obj->data.ends[iend].pos_r;
+	nx = qi*ex;
+	ny = qi*ey;
+	nz = qi*ez;
+	ft = (dir == 0 ? nx : ny).dot(f);
+	fz = nz.dot(f);
+	df = (side == 0 ? -1.0 : 1.0)*(dir == 0 ? nx : ny) + mu*nz;
+		
+	/*
+	ft = vec2_t(f.x, f.y);
 	ftnorm = ft.norm();
 	if(ftnorm < eps)
-		 ftn = zero2;
+		 ftn = vec2_t();
 	else ftn = ft/ftnorm;
 
 	mu = obj->cen->param.mu;
 
-	d = vec3_t(-ftn.x(), -ftn.y(), mu);
+	d = vec3_t(-ftn.x, -ftn.y, mu);
+	*/
 }
 
 void CentroidEndMomentCon::Prepare(){
@@ -2168,11 +2264,37 @@ void CentroidEndMomentCon::Prepare(){
 		f   = obj->fi[iend];
 		eta = obj->etai[iend];
 	}
-	Rc  = mat3_t::Identity();
+	
+	qi   = obj->data.ends[iend].pos_r;
+	nx   = qi*ex;
+	ny   = qi*ey;
+	nz   = qi*ez;
+	etax = nx.dot(eta);
+	etay = ny.dot(eta);
+	etaz = nz.dot(eta);
+	fz   = std::max(nz.dot(f), 0.0);
+	cmin = obj->cen->ends[iend].copMin;
+	cmax = obj->cen->ends[iend].copMax;
 
-	if(dir.x() > 0.0)
-		 bound = vec3_t(obj->cen->ends[iend].copMin.y(), -obj->cen->ends[iend].copMax.x(), -obj->cen->param.mu);
-	else bound = vec3_t(obj->cen->ends[iend].copMax.y(), -obj->cen->ends[iend].copMin.x(),  obj->cen->param.mu);
+	if(dir == 0){
+		df   = (side == 0 ? -cmin.x() : cmax.x())*nz;
+		deta = (side == 0 ? -1.0 :  1.0)*ny;
+	}
+	if(dir == 1){
+		df   = (side == 0 ? -cmin.y() : cmax.y())*nz;
+		deta = (side == 0 ?  1.0 : -1.0)*nx;
+	}
+	if(dir == 2){
+		df   = (side == 0 ? -cmin.z() : cmax.z())*nz;
+		deta = (side == 0 ?  1.0 : -1.0)*nz;
+	}
+
+	/*Rc  = mat3_t();
+
+	if(dir.x > 0.0)
+		 bound = vec3_t(obj->cen->ends[iend].copMin.y, -obj->cen->ends[iend].copMax.x, -obj->cen->param.mu);
+	else bound = vec3_t(obj->cen->ends[iend].copMax.y, -obj->cen->ends[iend].copMin.x,  obj->cen->param.mu);
+	*/
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2344,37 +2466,51 @@ void CentroidEndFrictionCon::CalcCoef(){
 
 	int idx = 0;
 	if(obj->cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness){
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef( d);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-d);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-d*(obj->data.duration/2.0));
-		//((R3Link*)links[idx++])->SetCoef( d % f);
-		dynamic_cast<SLink*>(links[idx++])->SetCoef(-d.x());
-		dynamic_cast<SLink*>(links[idx++])->SetCoef(-d.y());
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef( df);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-df);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-df*(obj->data.duration/2.0));
+		dynamic_cast<SLink* >(links[idx++])->SetCoef(-df.x());
+		dynamic_cast<SLink* >(links[idx++])->SetCoef(-df.y());
 	}
 	else{
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef( d);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef( df);
 	}
 }
 
 void CentroidEndMomentCon::CalcCoef(){
 	Prepare();
+	
+	// f   = l2*(p - pi - ri)
+	// eta = l2*etahat
 
+	// -my - (cop_min.x)*fz >= 0
+	//  my + (cop_max.x)*fz >= 0
+	//  mx - (cop_min.y)*fz >= 0
+	// -mx + (cop_max.y)*fz >= 0
+	//  mz - (cop_min.z)*fz >= 0
+	// -mz + (cop_max.z)*fz >= 0
+	
 	int idx = 0;
-    real_t b  = dir.dot(bound);
-    vec3_t zc = Rc.col(2);
-
 	if(obj->cen->param.endWrenchParametrization == Centroid::EndWrenchParametrization::Stiffness){
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-b*zc);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef( b*zc);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef( (Rc*dir).cross(eta) - b*(zc.cross(f)) );
-		dynamic_cast<SLink *>(links[idx++])->SetCoef( b*zc[0]);
-		dynamic_cast<SLink *>(links[idx++])->SetCoef( b*zc[1]);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef( Rc*dir);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef( df);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef(-df);
+		dynamic_cast<SLink *>(links[idx++])->SetCoef(-df.x());
+		dynamic_cast<SLink *>(links[idx++])->SetCoef(-df.y());
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef( deta);
+
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef(-(dir*bound)*Rc.col(2));
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef( (dir*bound)*Rc.col(2));
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef( (Rc*dir) % eta - (dir*bound)*(Rc.col(2) % f) );
+		//dynamic_cast<SLink *>(links[idx++])->SetCoef( (dir*bound)*Rc.col(2)[0]);
+		//dynamic_cast<SLink *>(links[idx++])->SetCoef( (dir*bound)*Rc.col(2)[1]);
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef( Rc*dir);
 	}
 	else{
-		//y[0] = dir*(eta - bound*f.z);
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef(vec3_t(0.0, 0.0, -b*f.z()));
-		dynamic_cast<R3Link*>(links[idx++])->SetCoef(dir);
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef(df  );
+		dynamic_cast<R3Link*>(links[idx++])->SetCoef(deta);
+		
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef(vec3_t(0.0, 0.0, -(dir*bound)*f.z));
+		//dynamic_cast<R3Link*>(links[idx++])->SetCoef(dir);
 	}
 }
 
@@ -2441,12 +2577,14 @@ void CentroidEndContactCon::CalcDeviation(){
 }
 
 void CentroidEndFrictionCon::CalcDeviation(){
-	y[0] = mu*f.z() - ftnorm;
+	y[0] = df.dot(f);
+	//y[0] = mu*f.z - ftnorm;
 	active = (obj->data_des.ends[iend].iface != -1 && y[0] < 0.0);
 }
 
 void CentroidEndMomentCon::CalcDeviation(){
-	y[0] = dir.dot(eta - bound*f.z());
+	y[0] = df.dot(f) + deta.dot(eta);
+	//y[0] = dir*(eta - bound*f.z);
 }
 
 }

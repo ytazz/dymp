@@ -87,8 +87,8 @@ public:
         //taskSelect = Task::LongJump;
         //taskSelect = Task::Backflip;
         //taskSelect = Task::Turn;
-        //gaitSelect = Gait::WalkWithDoubleSupport;
-        gaitSelect = Gait::Run;
+        gaitSelect = Gait::WalkWithDoubleSupport;
+        //gaitSelect = Gait::Run;
         //gaitSelect = Gait::TrotWithQuadSupport;
         //gaitSelect = Gait::TrotWithoutQuadSupport;
         //gaitSelect = Gait::Pace;
@@ -181,9 +181,9 @@ public:
         centroid->param.enableRotation   = true;
         centroid->param.rotationResolution = 10;
         //centroid->param.endInterpolation = DiMP::Centroid::EndInterpolation::Local;
-        centroid->param.endInterpolation = Centroid::EndInterpolation::Global;
+        centroid->param.endInterpolation = Centroid::EndInterpolation::CycloidGlobal;
         centroid->param.endWrenchParametrization = Centroid::EndWrenchParametrization::Stiffness;
-        //centroid->param.endWrenchParametrization = DiMP::Centroid::EndWrenchParametrization::Direct;
+        //centroid->param.endWrenchParametrization = Centroid::EndWrenchParametrization::Direct;
         
         // create geometry
         centroid->param.bodyRangeMin = vec3_t(-0.05, -0.05,  0.0);
@@ -750,8 +750,8 @@ public:
             centroid->ends[iend].basePos = endConf[iend].basePos;
             centroid->ends[iend].posMin  = endConf[iend].posMin;
             centroid->ends[iend].posMax  = endConf[iend].posMax; 
-		    centroid->ends[iend].copMin  = vec2_t(-0.05, -0.01);
-		    centroid->ends[iend].copMax  = vec2_t( 0.05,  0.01);
+		    centroid->ends[iend].copMin  = vec3_t(-0.05, -0.01, -0.05);
+		    centroid->ends[iend].copMax  = vec3_t( 0.05,  0.01,  0.05);
 
             centroid->ends[iend].stiffnessMax = endConf[iend].stiffMax;
             centroid->ends[iend].cmpOffset  = endConf[iend].cmpOffset;
