@@ -16,12 +16,13 @@ struct WholebodyJointAccCon;
 struct WholebodyCentroidPosConT;
 struct WholebodyCentroidVelConT;
 struct WholebodyCentroidPosConR;
-struct WholebodyCentroidVelConR;
+//struct WholebodyCentroidVelConR;
+struct WholebodyCentroidLCon;
 struct WholebodyDesPosConT;
 struct WholebodyDesPosConR;
 struct WholebodyDesVelConT;
 struct WholebodyDesVelConR;
-struct WholebodyLCon;
+//struct WholebodyDesLCon;
 struct WholebodyContactPosConT;
 struct WholebodyContactPosConR;
 struct WholebodyContactVelConT;
@@ -77,17 +78,18 @@ struct WholebodyData{
 		vec3_t pos_t_weight;
 		vec3_t pos_r_weight;
 		vec3_t vel_t_weight;
-		vec3_t vel_r_weight;
+        vec3_t L_weight;
+		//vec3_t vel_r_weight;
 		vec3_t acc_t_weight;
-		vec3_t acc_r_weight;
-		vec3_t L, Ld, Labs;                  ///< momentum (local) and its derivative
-		vec3_t L_weight;
-		mat3_t I_local, Id_local, I, Id, Iinv;                ///< inertia matrix around com and its inverse
+        vec3_t Ld_weight;
+		//vec3_t acc_r_weight;
+		vec3_t L_local, Ld_local, L_abs;                     ///< momentum (local) and its derivative
+		mat3_t I_local, Id_local, I_abs, Id_abs, I_abs_inv;  ///< inertia matrix around com and its inverse
 
 		Centroid();
 	};
 
-	Centroid      centroid;
+	Centroid           centroid;
 	std::vector<End>   ends;
 	std::vector<Link>  links;
 	
@@ -138,23 +140,28 @@ public:
 		V3Var*  var_pos_t;
 		QVar*   var_pos_r;
 		V3Var*  var_vel_t;
-		V3Var*  var_vel_r;
+		//V3Var*  var_vel_r;
+        V3Var*  var_L;
 		V3Var*  var_acc_t;
-		V3Var*  var_acc_r;
+		//V3Var*  var_acc_r;
+        V3Var*  var_Ld;
 
 		WholebodyCentroidPosConT*  con_pos_t;
 		WholebodyCentroidPosConR*  con_pos_r;
 		WholebodyCentroidVelConT*  con_vel_t;
-		WholebodyCentroidVelConR*  con_vel_r;
+        WholebodyCentroidLCon*     con_L;
+		//WholebodyCentroidVelConR*  con_vel_r;
 
 		FixConV3*  con_des_pos_t;
 		FixConQ*   con_des_pos_r;
 		FixConV3*  con_des_vel_t;
-		FixConV3*  con_des_vel_r;
+        FixConV3*  con_des_L;
+		//FixConV3*  con_des_vel_r;
 		FixConV3*  con_des_acc_t;
-		FixConV3*  con_des_acc_r;
+        FixConV3*  con_des_Ld;
+		//FixConV3*  con_des_acc_r;
 
-		WholebodyLCon*         con_L;
+		//WholebodyLCon*         con_L;
 	};
 
 	struct Joint{
@@ -180,7 +187,7 @@ public:
 	WholebodyData          data;
 	WholebodyData          data_des;
 
-	Centroid       centroid;
+	Centroid            centroid;
 	std::vector<End>    ends;
 	std::vector<Joint>  joints;
 
@@ -215,12 +222,11 @@ public:
 			Point,
 		};
 	};
-
-	struct JointOrder{
+	struct InputMode{
 		enum{
-			First  = 1,
-			Second = 2,
-			Third  = 3,
+			Velocity,
+			Acceleration,
+			Jerk,
 		};
 	};
 
@@ -230,7 +236,8 @@ public:
 		real_t  gravity;
 		real_t  dt;         ///< time resolution. used for scaling only
 		bool    useLd;
-		bool    useJerk;
+		//bool    useJerk;
+		int     inputMode;
 		
 		Param();
 	};
@@ -279,8 +286,9 @@ public:
 		bool   enableRotation;
 		bool   enableForce;
 		bool   enableMoment;
+        bool   enableTerminalCost;
 
-		End(int _ilink = 0.0, vec3_t _offset = zero3, bool _enable_trn = true, bool _enable_rot = true, bool _enable_force = true, bool _enable_moment = true);
+		End(int _ilink = 0.0, vec3_t _offset = zero3, bool _enable_trn = true, bool _enable_rot = true, bool _enable_force = true, bool _enable_moment = true, bool _enable_terminal = true);
 	};
 	
    	struct Snapshot{
@@ -305,14 +313,14 @@ public:
 
     Param	            param;
 	Scale               scale;
-    std::vector<Link>        links;
-	std::vector<Joint>       joints;
-	std::vector<End>         ends;
+    std::vector<Link>   links;
+	std::vector<Joint>  joints;
+	std::vector<End>    ends;
 	WholebodyCallback*  callback;
 	
-	Snapshot            snapshot;
+	Snapshot                 snapshot;
 	std::vector<Snapshot>    trajectory;
-	bool                trajReady;
+	bool                     trajReady;
 
 	Timer timer;
 	Timer timer2;
@@ -334,10 +342,14 @@ public:
 	void CalcVelocity          (WholebodyData& d);
 	void CalcAcceleration      (WholebodyData& d);
 	void CalcComAcceleration   (WholebodyData& d);
-	void CalcBaseAcceleration  (WholebodyData& d);
-	void CalcMomentum          (WholebodyData& d);
-	void CalcMomentumDerivative(WholebodyData& d);
-	void CalcForce             (WholebodyData& d);
+	void CalcBaseAngularVelocity    (WholebodyData& d);
+	void CalcBaseAngularAcceleration(WholebodyData& d);
+	void CalcInertia                (WholebodyData& d);
+	void CalcInertiaDerivative      (WholebodyData& d);
+	void CalcLocalMomentum          (WholebodyData& d);
+	void CalcLocalMomentumDerivative(WholebodyData& d);
+	void CalcAbsoluteMomentum       (WholebodyData& d);
+	void CalcForce                  (WholebodyData& d);
 	
 	void ComState    (real_t t, vec3_t& pos, vec3_t& vel   );
 	void BaseState   (real_t t, quat_t& ori, vec3_t& angvel);
@@ -444,7 +456,18 @@ struct WholebodyCentroidPosConR : WholebodyCon{
 		
 	WholebodyCentroidPosConR(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
 };
+struct WholebodyCentroidLCon : WholebodyCon{
+	vec3_t L0, L1, Ld0, L_rhs;
+	real_t h;
+	
+	void Prepare();
 
+	virtual void  CalcCoef();
+	virtual void  CalcDeviation();
+		
+	WholebodyCentroidLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
+};
+/*
 struct WholebodyCentroidVelConR : WholebodyCon{
 	vec3_t pc, w0, u0, w1, w_rhs, L, Ld;
 	mat3_t Id, Iinv;
@@ -457,7 +480,7 @@ struct WholebodyCentroidVelConR : WholebodyCon{
 		
 	WholebodyCentroidVelConR(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
 };
-
+*/
 struct WholebodyDesPosConT : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
@@ -493,9 +516,9 @@ struct WholebodyDesVelConT : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
-	vec3_t vc, w0, ve, oe, pi, ci, r;
+	vec3_t vc, w0, ve, oe, pi, ci, r, pi_abs;
 	quat_t q0, qi;
-	mat3_t R0;
+	mat3_t R0, Iinv;
 
 	void Prepare();
 
@@ -511,7 +534,7 @@ struct WholebodyDesVelConR : Constraint{
 	vec3_t desired;
 	vec3_t w0, we;
 	quat_t q0;
-	mat3_t R0;
+	mat3_t R0, Iinv;
 	
 	void Prepare();
 
@@ -520,7 +543,7 @@ struct WholebodyDesVelConR : Constraint{
 		
 	WholebodyDesVelConR(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale);
 };
-
+/*
 struct WholebodyLCon : Constraint{
 	WholebodyKey*  obj;
 	vec3_t  desired;
@@ -533,7 +556,7 @@ struct WholebodyLCon : Constraint{
 	
 	WholebodyLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
 };
-
+*/
 struct WholebodyContactPosConT : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
@@ -568,7 +591,7 @@ struct WholebodyContactVelConT : Constraint{
 	int    iend;
 	vec3_t vc, w0, pi, vi, wi, po, r;
 	quat_t q0, qi, qo;
-	mat3_t R0, Ro;
+	mat3_t R0, Ro, Iinv;
 	
 	void Prepare();
 
@@ -582,7 +605,7 @@ struct WholebodyContactVelConR : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t q0, qi, qo;
-	mat3_t R0, Ro;
+	mat3_t R0, Ro, Iinv;
 	vec3_t w0, wi;
 	
 	void Prepare();
@@ -596,8 +619,9 @@ struct WholebodyContactVelConR : Constraint{
 struct WholebodyNormalForceCon : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
-	vec3_t n, f;
-	real_t fn;
+	quat_t qi;
+	vec3_t nz, f;
+	real_t fz;
 
 	void Prepare();
 
@@ -612,7 +636,9 @@ struct WholebodyFrictionForceCon : Constraint{
 	int    iend;
 	int    dir;   //< x or y
 	int    side;  //< upper or lower bound
-	real_t fn, ft, mu;
+	quat_t qi;
+	vec3_t nx, ny, nz, f, df;
+	real_t fz, ft, mu;
 	
 	void Prepare();
 
@@ -627,8 +653,9 @@ struct WholebodyMomentCon : Constraint{
 	int    iend;
 	int    dir;   //< x or y
 	int    side;  //< upper or lower bound
-	real_t fn;
-	vec3_t m;
+	quat_t qi;
+	vec3_t nx, ny, nz, f, eta, df, deta;
+	real_t fz, etax, etay, etaz;
 	vec3_t cmin, cmax;
 
 	void Prepare();

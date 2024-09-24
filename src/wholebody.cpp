@@ -25,10 +25,12 @@ WholebodyData::Centroid::Centroid(){
 	pos_t_weight = one3;
 	pos_r_weight = one3;
 	vel_t_weight = one3;
-	vel_r_weight = one3;
+    L_weight     = one3;
+	//vel_r_weight = one3;
 	acc_t_weight = one3;
-	acc_r_weight = one3;
-	L_weight     = one3;
+    Ld_weight    = one3;
+	//acc_r_weight = one3;
+	//L_weight     = one3;
 }
 
 void WholebodyData::Init(Wholebody* wb){
@@ -108,39 +110,26 @@ void WholebodyKey::AddVar(Solver* solver) {
 
 	stringstream ss, ss2;
 
-	// states
 	centroid.var_pos_t = new V3Var(solver, ID(VarTag::WholebodyPosT, model, name + "_centroid_pos_t"), wb->scale.pt);
 	centroid.var_pos_r = new QVar (solver, ID(VarTag::WholebodyPosR, model, name + "_centroid_pos_r"), wb->scale.pr);
 	centroid.var_vel_t = new V3Var(solver, ID(VarTag::WholebodyVelT, model, name + "_centroid_vel_t"), wb->scale.vt);
-	centroid.var_vel_r = new V3Var(solver, ID(VarTag::WholebodyVelR, model, name + "_centroid_vel_r"), wb->scale.vr);
+	centroid.var_L     = new V3Var(solver, ID(VarTag::WholebodyMomentum, model, name + "_centroid_mom"), wb->scale.L);
+	//centroid.var_vel_r = new V3Var(solver, ID(VarTag::WholebodyVelR, model, name + "_centroid_vel_r"), wb->scale.vr);
 	
+	centroid.var_acc_t = new V3Var(solver, ID(VarTag::WholebodyAccT, model, name + "_centroid_acc_t"), wb->scale.at);
+	centroid.var_Ld    = new V3Var(solver, ID(VarTag::WholebodyForceR, model, name + "_centroid_Ld"   ), wb->scale.fr);
+	//centroid.var_acc_r = new V3Var(solver, ID(VarTag::WholebodyAccR, model, name + "_centroid_acc_r"), wb->scale.ar);
+
 	for(int i = 0; i < njoint; i++){
 		ss.str("");
 		ss << name << "_joint" << i;
 
 		joints[i].var_q    = new SVar(solver, ID(VarTag::WholebodyJointPos , model, ss.str() + "_q"   ), wb->scale.pr);
 		joints[i].var_qd   = new SVar(solver, ID(VarTag::WholebodyJointVel , model, ss.str() + "_qd"  ), wb->scale.vr);
-		if(wb->param.useJerk){
-			joints[i].var_qdd  = new SVar(solver, ID(VarTag::WholebodyJointAcc , model, ss.str() + "_qdd" ), wb->scale.ar);
-		}
+		joints[i].var_qdd  = new SVar(solver, ID(VarTag::WholebodyJointAcc , model, ss.str() + "_qdd" ), wb->scale.ar);
+		joints[i].var_qddd = new SVar(solver, ID(VarTag::WholebodyJointJerk, model, ss.str() + "_qddd"  ), wb->scale.jr);
 	}
 	
-	// inputs
-	centroid.var_acc_t = new V3Var(solver, ID(VarTag::WholebodyAccT, model, name + "_centroid_acc_t"), wb->scale.at);
-	centroid.var_acc_r = new V3Var(solver, ID(VarTag::WholebodyAccR, model, name + "_centroid_acc_r"), wb->scale.ar);
-
-	for(int i = 0; i < njoint; i++){
-		ss.str("");
-		ss << name << "_joint" << i;
-
-		if(wb->param.useJerk){
-			joints[i].var_qddd = new SVar(solver, ID(VarTag::WholebodyJointJerk, model, ss.str() + "_qddd"  ), wb->scale.jr);
-		}
-		else{
-			joints[i].var_qdd = new SVar(solver, ID(VarTag::WholebodyJointAcc, model, ss.str() + "_qdd"  ), wb->scale.ar);
-		}
-	}
-
 	for(int i = 0; i < nend; i++){
 		ss.str("");
 		ss << name << "_end" << i;
@@ -151,29 +140,59 @@ void WholebodyKey::AddVar(Solver* solver) {
 	solver->AddStateVar(centroid.var_pos_t, tick->idx);
 	solver->AddStateVar(centroid.var_pos_r, tick->idx);
 	solver->AddStateVar(centroid.var_vel_t, tick->idx);
-	solver->AddStateVar(centroid.var_vel_r, tick->idx);
-	for(int i = 0; i < njoint; i++){
+	//solver->AddStateVar(centroid.var_vel_r, tick->idx);
+	solver->AddStateVar(centroid.var_L, tick->idx);
+
+	solver->AddInputVar(centroid.var_acc_t, tick->idx);
+	solver->AddInputVar(centroid.var_Ld   , tick->idx);
+	//solver->AddInputVar(centroid.var_acc_r, tick->idx);
+
+    for(int i = 0; i < njoint; i++){
 		solver->AddStateVar(joints[i].var_q  , tick->idx);
-		solver->AddStateVar(joints[i].var_qd , tick->idx);
-		if(wb->param.useJerk){
+	}
+	if( wb->param.inputMode == Wholebody::InputMode::Acceleration ||
+		wb->param.inputMode == Wholebody::InputMode::Jerk ){
+		for(int i = 0; i < njoint; i++){
+			solver->AddStateVar(joints[i].var_qd , tick->idx);
+		}
+	}
+	if(wb->param.inputMode == Wholebody::InputMode::Jerk){
+		for(int i = 0; i < njoint; i++){
 			solver->AddStateVar(joints[i].var_qdd, tick->idx);	
 		}
 	}
 
-	solver->AddInputVar(centroid.var_acc_t, tick->idx);
-	solver->AddInputVar(centroid.var_acc_r, tick->idx);
-	for(int i = 0; i < njoint; i++){
-		if(wb->param.useJerk){
-			solver->AddInputVar(joints[i].var_qddd, tick->idx);	
+	if(wb->param.inputMode == Wholebody::InputMode::Velocity){
+		for(int i = 0; i < njoint; i++){
+			solver->AddInputVar(joints[i].var_qd  , tick->idx);	
 		}
-		else{
+	}
+	if(wb->param.inputMode == Wholebody::InputMode::Acceleration){
+		for(int i = 0; i < njoint; i++){
 			solver->AddInputVar(joints[i].var_qdd , tick->idx);	
+		}
+	}
+	if(wb->param.inputMode == Wholebody::InputMode::Jerk){
+		for(int i = 0; i < njoint; i++){
+			solver->AddInputVar(joints[i].var_qddd, tick->idx);	
 		}
 	}
 	for(int i = 0; i < nend; i++){
 		solver->AddInputVar(ends[i].var_force_t, tick->idx);			
 		solver->AddInputVar(ends[i].var_force_r, tick->idx);
 	}
+
+	for(int i = 0; i < njoint; i++){
+		if(wb->param.inputMode == Wholebody::InputMode::Velocity){
+			joints[i].var_qdd ->locked = true;
+			joints[i].var_qddd->locked = true;
+		}
+		if(wb->param.inputMode == Wholebody::InputMode::Acceleration){
+			joints[i].var_qddd->locked = true;
+		}
+		if(wb->param.inputMode == Wholebody::InputMode::Jerk){
+		}
+	}	
 
 	for(int i = 0; i < nend; i++){
 		ends[i].var_force_t->locked = !(wb->ends[i].enableForce);
@@ -199,21 +218,21 @@ void WholebodyKey::AddCon(Solver* solver) {
 		centroid.con_pos_t = new WholebodyCentroidPosConT(solver, name + "_centroid_pos_t", this, wb->scale.pt);
 		centroid.con_pos_r = new WholebodyCentroidPosConR(solver, name + "_centroid_pos_r", this, wb->scale.pr);
 		centroid.con_vel_t = new WholebodyCentroidVelConT(solver, name + "_centroid_vel_t", this, wb->scale.vt);
-		centroid.con_vel_r = new WholebodyCentroidVelConR(solver, name + "_centroid_vel_r", this, wb->scale.vr);
+		//centroid.con_vel_r = new WholebodyCentroidVelConR(solver, name + "_centroid_vel_r", this, wb->scale.vr);
+        centroid.con_L     = new WholebodyCentroidLCon(solver, name + "_centroid_mom", this, wb->scale.L);
 	}
 
 	centroid.con_des_pos_t = new FixConV3(solver, ID(ConTag::WholebodyPosT, model, name + "_des_centroid_pos_t"), centroid.var_pos_t, wb->scale.pt);
 	centroid.con_des_pos_r = new FixConQ (solver, ID(ConTag::WholebodyPosR, model, name + "_des_centroid_pos_r"), centroid.var_pos_r, wb->scale.pr);
 	centroid.con_des_vel_t = new FixConV3(solver, ID(ConTag::WholebodyVelT, model, name + "_des_centroid_vel_t"), centroid.var_vel_t, wb->scale.vt);
-	centroid.con_des_vel_r = new FixConV3(solver, ID(ConTag::WholebodyVelR, model, name + "_des_centroid_vel_r"), centroid.var_vel_r, wb->scale.vr);
+	//centroid.con_des_vel_r = new FixConV3(solver, ID(ConTag::WholebodyVelR, model, name + "_des_centroid_vel_r"), centroid.var_vel_r, wb->scale.vr);
+	centroid.con_des_L = new FixConV3(solver, ID(ConTag::WholebodyMomentum, model, name + "_des_centroid_L"), centroid.var_L, wb->scale.L);
+
+	centroid.con_des_acc_t = new FixConV3(solver, ID(ConTag::WholebodyAccT, model, name + "_des_centroid_acc_t"), centroid.var_acc_t, wb->scale.at);
+	centroid.con_des_Ld    = new FixConV3(solver, ID(ConTag::WholebodyAccR, model, name + "_des_centroid_Ld"   ), centroid.var_Ld   , wb->scale.fr);
+	//centroid.con_des_acc_r = new FixConV3(solver, ID(ConTag::WholebodyAccR, model, name + "_des_centroid_acc_r"), centroid.var_acc_r, wb->scale.ar);
+    //centroid.con_L = new WholebodyLCon(solver, name + "_L", this, wb->scale.L);
 	
-	if(next){
-		centroid.con_des_acc_t = new FixConV3(solver, ID(ConTag::WholebodyAccT, model, name + "_des_centroid_acc_t"), centroid.var_acc_t, wb->scale.at);
-		centroid.con_des_acc_r = new FixConV3(solver, ID(ConTag::WholebodyAccR, model, name + "_des_centroid_acc_r"), centroid.var_acc_r, wb->scale.ar);
-
-		centroid.con_L = new WholebodyLCon(solver, name + "_L", this, wb->scale.L);
-	}
-
 	for(int i = 0; i < njoint; i++){
 		ss.str("");
 		ss << name << "_joint" << i;
@@ -221,31 +240,17 @@ void WholebodyKey::AddCon(Solver* solver) {
 		if(next){
 			joints[i].con_q   = new WholebodyJointPosCon(solver, ss.str() + "_q"  , this, i, wb->scale.pr);
 			joints[i].con_qd  = new WholebodyJointVelCon(solver, ss.str() + "_qd" , this, i, wb->scale.vr);
-			if(wb->param.useJerk){
-				joints[i].con_qdd = new WholebodyJointAccCon(solver, ss.str() + "_qdd", this, i, wb->scale.ar);
-			}
+			joints[i].con_qdd = new WholebodyJointAccCon(solver, ss.str() + "_qdd", this, i, wb->scale.ar);
 		}
 			
-		joints[i].con_des_q    = new FixConS(solver, ID(ConTag::WholebodyJointPos, model, ss.str() + "_des_q"   ), joints[i].var_q   , wb->scale.pr);
-		joints[i].con_des_qd   = new FixConS(solver, ID(ConTag::WholebodyJointVel, model, ss.str() + "_des_qd"  ), joints[i].var_qd  , wb->scale.vr);
-		if(wb->param.useJerk){
-			joints[i].con_des_qdd  = new FixConS(solver, ID(ConTag::WholebodyJointAcc, model, ss.str() + "_des_qdd" ), joints[i].var_qdd , wb->scale.ar);
-			if(next){
-				joints[i].con_des_qddd  = new FixConS(solver, ID(ConTag::WholebodyJointJerk, model, ss.str() + "_des_qddd" ), joints[i].var_qddd , wb->scale.jr);
-			}		
-		}
-		else{
-			if(next){
-				joints[i].con_des_qdd  = new FixConS(solver, ID(ConTag::WholebodyJointAcc, model, ss.str() + "_des_qdd" ), joints[i].var_qdd , wb->scale.ar);
-			}
-		}
+		joints[i].con_des_q    = new FixConS(solver, ID(ConTag::WholebodyJointPos , model, ss.str() + "_des_q"   ), joints[i].var_q   , wb->scale.pr);
+		joints[i].con_des_qd   = new FixConS(solver, ID(ConTag::WholebodyJointVel , model, ss.str() + "_des_qd"  ), joints[i].var_qd  , wb->scale.vr);
+		joints[i].con_des_qdd  = new FixConS(solver, ID(ConTag::WholebodyJointAcc , model, ss.str() + "_des_qdd" ), joints[i].var_qdd , wb->scale.ar);
+		joints[i].con_des_qddd = new FixConS(solver, ID(ConTag::WholebodyJointJerk, model, ss.str() + "_des_qddd"), joints[i].var_qddd, wb->scale.jr);
 		
 		joints[i].con_range_q   = new RangeConS(solver, ID(ConTag::WholebodyJointPos, model, ss.str() + "_range_q"  ), joints[i].var_q , wb->scale.pr);
 		joints[i].con_range_qd  = new RangeConS(solver, ID(ConTag::WholebodyJointVel, model, ss.str() + "_range_qd" ), joints[i].var_qd, wb->scale.vr);
 		joints[i].con_range_qdd = new RangeConS(solver, ID(ConTag::WholebodyJointAcc, model, ss.str() + "_range_qdd"), joints[i].var_qdd, wb->scale.ar);
-		//if(next){
-		//	joints[i].con_range_qdd = new RangeConS(solver, ID(ConTag::WholebodyJointAcc, node, tick, ss.str() + "_range_qdd"), joints[i].var_qdd, wb->scale.ar);
-		//}
 	}
 	
 	for(int i = 0; i < nend; i++){
@@ -257,126 +262,130 @@ void WholebodyKey::AddCon(Solver* solver) {
 		ends[i].con_des_vel_t   = new WholebodyDesVelConT(solver, ss.str() + "_des_vel_t", this, i, wb->scale.vt);
 		ends[i].con_des_vel_r   = new WholebodyDesVelConR(solver, ss.str() + "_des_vel_r", this, i, wb->scale.vr);
 		
-		if(next){
-			ends[i].con_force_normal = new WholebodyNormalForceCon(solver, ss.str() + "_force_normal", this, i, wb->scale.ft);
+		ends[i].con_force_normal = new WholebodyNormalForceCon(solver, ss.str() + "_force_normal", this, i, wb->scale.ft);
 
-			ends[i].con_force_friction[0][0] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 0, 0, wb->scale.ft);
-			ends[i].con_force_friction[0][1] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 0, 1, wb->scale.ft);
-			ends[i].con_force_friction[1][0] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 1, 0, wb->scale.ft);
-			ends[i].con_force_friction[1][1] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 1, 1, wb->scale.ft);
+		ends[i].con_force_friction[0][0] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 0, 0, wb->scale.ft);
+		ends[i].con_force_friction[0][1] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 0, 1, wb->scale.ft);
+		ends[i].con_force_friction[1][0] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 1, 0, wb->scale.ft);
+		ends[i].con_force_friction[1][1] = new WholebodyFrictionForceCon(solver, ss.str() + "_force_friction", this, i, 1, 1, wb->scale.ft);
 
-			ends[i].con_moment[0][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 0, 0, wb->scale.fr);
-			ends[i].con_moment[0][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 0, 1, wb->scale.fr);
-			ends[i].con_moment[1][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 1, 0, wb->scale.fr);
-			ends[i].con_moment[1][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 1, 1, wb->scale.fr);
-			ends[i].con_moment[2][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 2, 0, wb->scale.fr);
-			ends[i].con_moment[2][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 2, 1, wb->scale.fr);
-		}
+		ends[i].con_moment[0][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 0, 0, wb->scale.fr);
+		ends[i].con_moment[0][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 0, 1, wb->scale.fr);
+		ends[i].con_moment[1][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 1, 0, wb->scale.fr);
+		ends[i].con_moment[1][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 1, 1, wb->scale.fr);
+		ends[i].con_moment[2][0] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 2, 0, wb->scale.fr);
+		ends[i].con_moment[2][1] = new WholebodyMomentCon(solver, ss.str() + "_moment", this, i, 2, 1, wb->scale.fr);
 
 		ends[i].con_contact_pos_t = new WholebodyContactPosConT(solver, ss.str() + "_contact_pos_t", this, i, wb->scale.pt);
 		ends[i].con_contact_pos_r = new WholebodyContactPosConR(solver, ss.str() + "_contact_pos_r", this, i, wb->scale.pr);
 		ends[i].con_contact_vel_t = new WholebodyContactVelConT(solver, ss.str() + "_contact_vel_t", this, i, wb->scale.vt);
 		ends[i].con_contact_vel_r = new WholebodyContactVelConR(solver, ss.str() + "_contact_vel_r", this, i, wb->scale.vr);
-		
-		if(next){
-			ends[i].con_des_force_t = new FixConV3(solver, ID(ConTag::WholebodyForceT, model, ss.str() + "_des_force_t"), ends[i].var_force_t, wb->scale.ft);
-			ends[i].con_des_force_r = new FixConV3(solver, ID(ConTag::WholebodyForceR, model, ss.str() + "_des_force_r"), ends[i].var_force_r, wb->scale.fr);
-		}
+	
+		ends[i].con_des_force_t = new FixConV3(solver, ID(ConTag::WholebodyForceT, model, ss.str() + "_des_force_t"), ends[i].var_force_t, wb->scale.ft);
+		ends[i].con_des_force_r = new FixConV3(solver, ID(ConTag::WholebodyForceR, model, ss.str() + "_des_force_r"), ends[i].var_force_r, wb->scale.fr);
 	}
 
 	if(next){
 		solver->AddTransitionCon(centroid.con_pos_t, tick->idx);
 		solver->AddTransitionCon(centroid.con_pos_r, tick->idx);
 		solver->AddTransitionCon(centroid.con_vel_t, tick->idx);
-		solver->AddTransitionCon(centroid.con_vel_r, tick->idx);
+		//solver->AddTransitionCon(centroid.con_vel_r, tick->idx);
+        solver->AddTransitionCon(centroid.con_L, tick->idx);
 	}
 	solver->AddCostCon(centroid.con_des_pos_t, tick->idx);
 	solver->AddCostCon(centroid.con_des_pos_r, tick->idx);
 	solver->AddCostCon(centroid.con_des_vel_t, tick->idx);
-	solver->AddCostCon(centroid.con_des_vel_r, tick->idx);
+	//solver->AddCostCon(centroid.con_des_vel_r, tick->idx);
+    solver->AddCostCon(centroid.con_des_L, tick->idx);
 
-	if(next){
-		solver->AddCostCon(centroid.con_des_acc_t, tick->idx);
-		solver->AddCostCon(centroid.con_des_acc_r, tick->idx);
-
-		solver->AddCostCon(centroid.con_L, tick->idx);
-	}
-	for(int i = 0; i < njoint; i++){
+	solver->AddCostCon(centroid.con_des_acc_t, tick->idx);
+	solver->AddCostCon(centroid.con_des_Ld   , tick->idx);
+	//solver->AddCostCon(centroid.con_des_acc_r, tick->idx);
+	
+    for(int i = 0; i < njoint; i++){
 		if(next){
 			solver->AddTransitionCon(joints[i].con_q  , tick->idx);
 			solver->AddTransitionCon(joints[i].con_qd , tick->idx);
+			solver->AddTransitionCon(joints[i].con_qdd, tick->idx);
 		}
+
 		solver->AddCostCon(joints[i].con_des_q   , tick->idx);
 		solver->AddCostCon(joints[i].con_des_qd  , tick->idx);
-		if(wb->param.useJerk){
-			solver->AddCostCon(joints[i].con_des_qdd , tick->idx);
-			if(next){
-				solver->AddCostCon(joints[i].con_des_qddd , tick->idx);
-			}
-		}
-		else{
-			if(next){
-				solver->AddCostCon(joints[i].con_des_qdd , tick->idx);
-			}
-		}
-		
+		solver->AddCostCon(joints[i].con_des_qdd , tick->idx);
+		solver->AddCostCon(joints[i].con_des_qddd, tick->idx);
+
 		solver->AddCostCon(joints[i].con_range_q  , tick->idx);
 		solver->AddCostCon(joints[i].con_range_qd , tick->idx);
 		solver->AddCostCon(joints[i].con_range_qdd, tick->idx);
-		//if(next){
-		//	solver->AddCostCon(joints[i].con_range_qdd, tick->idx);
-		//}
 	}
+
 	for(int i = 0; i < nend; i++){
 		solver->AddCostCon(ends[i].con_des_pos_t  , tick->idx);
 		solver->AddCostCon(ends[i].con_des_pos_r  , tick->idx);
 		solver->AddCostCon(ends[i].con_des_vel_t  , tick->idx);
 		solver->AddCostCon(ends[i].con_des_vel_r  , tick->idx);
 
-		if(next){
-			solver->AddCostCon(ends[i].con_force_normal, tick->idx);
-			solver->AddCostCon(ends[i].con_force_friction[0][0], tick->idx);
-			solver->AddCostCon(ends[i].con_force_friction[0][1], tick->idx);
-			solver->AddCostCon(ends[i].con_force_friction[1][0], tick->idx);
-			solver->AddCostCon(ends[i].con_force_friction[1][1], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[0][0], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[0][1], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[1][0], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[1][1], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[2][0], tick->idx);
-			solver->AddCostCon(ends[i].con_moment[2][1], tick->idx);
-		}
+		solver->AddCostCon(ends[i].con_force_normal, tick->idx);
+		solver->AddCostCon(ends[i].con_force_friction[0][0], tick->idx);
+		solver->AddCostCon(ends[i].con_force_friction[0][1], tick->idx);
+		solver->AddCostCon(ends[i].con_force_friction[1][0], tick->idx);
+		solver->AddCostCon(ends[i].con_force_friction[1][1], tick->idx);
+			
+		solver->AddCostCon(ends[i].con_moment[0][0], tick->idx);
+		solver->AddCostCon(ends[i].con_moment[0][1], tick->idx);
+		solver->AddCostCon(ends[i].con_moment[1][0], tick->idx);
+		solver->AddCostCon(ends[i].con_moment[1][1], tick->idx);
+		solver->AddCostCon(ends[i].con_moment[2][0], tick->idx);
+		solver->AddCostCon(ends[i].con_moment[2][1], tick->idx);
+			
 		solver->AddCostCon(ends[i].con_contact_pos_t, tick->idx);
 		solver->AddCostCon(ends[i].con_contact_pos_r, tick->idx);
 		solver->AddCostCon(ends[i].con_contact_vel_t, tick->idx);
 		solver->AddCostCon(ends[i].con_contact_vel_r, tick->idx);
-		if(next){
-			solver->AddCostCon(ends[i].con_des_force_t, tick->idx);
-			solver->AddCostCon(ends[i].con_des_force_r, tick->idx);
-		}
+
+		solver->AddCostCon(ends[i].con_des_force_t, tick->idx);
+		solver->AddCostCon(ends[i].con_des_force_r, tick->idx);
 	}
 
-	for(int i = 0; i < nend; i++){
-		ends[i].con_des_pos_t->enabled = (wb->ends[i].enableTranslation);
-		ends[i].con_des_pos_r->enabled = (wb->ends[i].enableRotation   );
-		ends[i].con_des_vel_t->enabled = (wb->ends[i].enableTranslation);
-		ends[i].con_des_vel_r->enabled = (wb->ends[i].enableRotation   );
-
+    for(int i = 0; i < njoint; i++){
 		if(next){
-			ends[i].con_force_normal->enabled = (wb->ends[i].enableForce);
-			ends[i].con_force_friction[0][0]->enabled = (wb->ends[i].enableForce);
-			ends[i].con_force_friction[0][1]->enabled = (wb->ends[i].enableForce);
-			ends[i].con_force_friction[1][0]->enabled = (wb->ends[i].enableForce);
-			ends[i].con_force_friction[1][1]->enabled = (wb->ends[i].enableForce);
-			ends[i].con_moment[0][0]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_moment[0][1]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_moment[1][0]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_moment[1][1]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_moment[2][0]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_moment[2][1]->enabled = (wb->ends[i].enableForce && wb->ends[i].enableMoment);
-			ends[i].con_des_force_t->enabled = (wb->ends[i].enableForce );
-			ends[i].con_des_force_r->enabled = (wb->ends[i].enableMoment);
+			joints[i].con_qd -> enabled = (wb->param.inputMode == Wholebody::InputMode::Jerk || wb->param.inputMode == Wholebody::InputMode::Acceleration);
+			joints[i].con_qdd-> enabled = (wb->param.inputMode == Wholebody::InputMode::Jerk);
 		}
+
+		joints[i].con_des_q   ->enabled = (next);
+		joints[i].con_des_qd  ->enabled = (next);
+		joints[i].con_des_qdd ->enabled = (next && (wb->param.inputMode == Wholebody::InputMode::Jerk || wb->param.inputMode == Wholebody::InputMode::Acceleration));
+		joints[i].con_des_qddd->enabled = (next && (wb->param.inputMode == Wholebody::InputMode::Jerk));
+
+		joints[i].con_range_q  ->enabled = (next);
+		joints[i].con_range_qd ->enabled = (next);
+		joints[i].con_range_qdd->enabled = (next && (wb->param.inputMode == Wholebody::InputMode::Jerk || wb->param.inputMode == Wholebody::InputMode::Acceleration));
+	}		
+
+	for(int i = 0; i < nend; i++){
+		ends[i].con_des_pos_t->enabled = (wb->ends[i].enableTranslation && (next || wb->ends[i].enableTerminalCost));
+		ends[i].con_des_pos_r->enabled = (wb->ends[i].enableRotation    && (next || wb->ends[i].enableTerminalCost));
+		ends[i].con_des_vel_t->enabled = (wb->ends[i].enableTranslation && (next));
+		ends[i].con_des_vel_r->enabled = (wb->ends[i].enableRotation    && (next));
+
+		ends[i].con_force_normal->enabled         = next && (wb->ends[i].enableForce);
+		ends[i].con_force_friction[0][0]->enabled = next && (wb->ends[i].enableForce);
+		ends[i].con_force_friction[0][1]->enabled = next && (wb->ends[i].enableForce);
+		ends[i].con_force_friction[1][0]->enabled = next && (wb->ends[i].enableForce);
+		ends[i].con_force_friction[1][1]->enabled = next && (wb->ends[i].enableForce);
+		ends[i].con_moment[0][0]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_moment[0][1]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_moment[1][0]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_moment[1][1]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_moment[2][0]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_moment[2][1]->enabled         = next && (wb->ends[i].enableForce && wb->ends[i].enableMoment);
+		ends[i].con_contact_pos_t->enabled        = next;
+		ends[i].con_contact_pos_r->enabled        = next;
+		ends[i].con_contact_vel_t->enabled        = next;
+		ends[i].con_contact_vel_r->enabled        = next;
+		ends[i].con_des_force_t->enabled          = next && (wb->ends[i].enableForce );
+		ends[i].con_des_force_r->enabled          = next && (wb->ends[i].enableMoment);
 	}
 }
 
@@ -385,38 +394,23 @@ void WholebodyKey::Prepare() {
 	int nend   = (int)wb->ends  .size();
 	int njoint = (int)wb->joints.size();
 
-	/*for(int i = 0; i < njoint; i++){
-		if(next){
-			if(prev){
-				joints[i].con_q ->corrRate = 1.0;
-				joints[i].con_qd->corrRate = 1.0;
-			}
-			else{
-				joints[i].con_q ->corrRate = 1.0;
-				joints[i].con_qd->corrRate = 1.0;
-			}
-		}
-	}*/
-
 	// copy variables to data
 	data.centroid.pos_t = centroid.var_pos_t->val;
 	data.centroid.pos_r = centroid.var_pos_r->val;
 	data.centroid.vel_t = centroid.var_vel_t->val;
-	data.centroid.vel_r = centroid.var_vel_r->val;
+	//data.centroid.vel_r = centroid.var_vel_r->val;
+    data.centroid.L_abs = centroid.var_L->val;
 
 	for(int i = 0; i < njoint; i++){
 		data.q   [i] = joints[i].var_q   ->val;
 		data.qd  [i] = joints[i].var_qd  ->val;
-		if(wb->param.useJerk){
-			data.qdd [i] = joints[i].var_qdd ->val;
-			if(next){
-				data.qddd [i] = joints[i].var_qddd ->val;
-			}
-		}
-		else{
-			if(next){
-				data.qdd [i] = joints[i].var_qdd ->val;
-			}
+		data.qdd [i] = joints[i].var_qdd ->val;
+		data.qddd[i] = joints[i].var_qddd ->val;
+
+		// calc joint acc by difference
+		if(next && (wb->param.inputMode == Wholebody::InputMode::Velocity)){
+			auto key1 = (WholebodyKey*)next;
+			data.qdd[i] = (key1->joints[i].var_qd->val - joints[i].var_qd->val)/(key1->tick->time - tick->time);
 		}
 	}
 	
@@ -430,14 +424,17 @@ void WholebodyKey::Prepare() {
 		}
 	}
 
-	wb->CalcPosition          (data);
-	wb->CalcJacobian          (data);
-	wb->CalcVelocity          (data);
-	wb->CalcAcceleration      (data);
-	wb->CalcMomentum          (data);
-	wb->CalcMomentumDerivative(data);
-	wb->CalcComAcceleration   (data);
-	wb->CalcBaseAcceleration  (data);
+	wb->CalcPosition               (data);
+	wb->CalcJacobian               (data);
+	wb->CalcVelocity               (data);
+	wb->CalcAcceleration           (data);
+	wb->CalcInertia                (data);
+	wb->CalcLocalMomentum          (data);
+	wb->CalcBaseAngularVelocity    (data);
+	wb->CalcInertiaDerivative      (data);
+	wb->CalcLocalMomentumDerivative(data);
+	wb->CalcComAcceleration        (data);
+	wb->CalcBaseAngularAcceleration(data);
 	//wb->CalcForce             (data);
 
 	q0 = centroid.var_pos_r->val;
@@ -459,55 +456,54 @@ void WholebodyKey::Prepare() {
 	}
 
 	// working variables
-	if(next){
-		fe .resize(nend);
-		me .resize(nend);
-		re .resize(nend);
-		rec.resize(nend);
+	// working variables
+	fe .resize(nend);
+	me .resize(nend);
+	re .resize(nend);
+	rec.resize(nend);
 		
-		J_L_q   .Allocate(3, njoint);
-		J_L_qd  .Allocate(3, njoint);
-		J_Ld_q  .Allocate(3, njoint);
-		J_Ld_qdd.Allocate(3, njoint);
-		mj_pjc.Allocate(3,3);
-		mj_vjc.Allocate(3,3);
-		mj_ajc.Allocate(3,3);
-		Ij    .Allocate(3,3);
+	J_L_q   .Allocate(3, njoint);
+	J_L_qd  .Allocate(3, njoint);
+	J_Ld_q  .Allocate(3, njoint);
+	J_Ld_qdd.Allocate(3, njoint);
+	mj_pjc.Allocate(3,3);
+	mj_vjc.Allocate(3,3);
+	mj_ajc.Allocate(3,3);
+	Ij    .Allocate(3,3);
 		
-		fsum = vec3_t::Zero();
-		msum = vec3_t::Zero();
-		for(int i = 0; i < nend; i++){
-			WholebodyData::End& dend = data.ends[i];
+	fsum = zero3;
+	msum = zero3;
+	for(int i = 0; i < nend; i++){
+		WholebodyData::End& dend = data.ends[i];
 			
-			re [i] = data.centroid.pos_r*dend.pos_t;
-			rec[i] = cross_mat(re[i]);
+		re [i] = data.centroid.pos_r*dend.pos_t;
+		rec[i] = cross_mat(re[i]);
 			
-			fe[i] = dend.force_t;
-			me[i] = dend.force_r;
+		fe[i] = dend.force_t;
+		me[i] = dend.force_r;
 			
-			fsum += fe[i];
-			msum += me[i] + re[i].cross(fe[i]);
-		}
+		fsum += fe[i];
+		msum += me[i] + re[i].cross(fe[i]);
+	}
 
-		mat_clear(J_L_q   );
-		mat_clear(J_L_qd  );
-		mat_clear(J_Ld_q  );
-		mat_clear(J_Ld_qdd);
-		for(int j = 0; j < nlink; j++){
-			WholebodyData::Link& dlnk = data.links[j];
+	mat_clear(J_L_q   );
+	mat_clear(J_L_qd  );
+	mat_clear(J_Ld_q  );
+	mat_clear(J_Ld_qdd);
+	for(int j = 0; j < nlink; j++){
+		WholebodyData::Link& dlnk = data.links[j];
 
-			real_t mj = wb->links[j].mass;
-			cross_mat(dlnk.pos_t, mj, mj_pjc);
-			cross_mat(dlnk.vel_t, mj, mj_vjc);
-			cross_mat(dlnk.acc_t, mj, mj_ajc);
-			mat_copy (dlnk.I, Ij);
-			mat_mat_mul(mj_vjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_L_q   , -1.0, 1.0);
-			mat_mat_mul(mj_pjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_L_qd  ,  1.0, 1.0);
-			mat_mat_mul(Ij    , data.Jfk[j].SubMatrix(3,0,3,njoint), J_L_qd  ,  1.0, 1.0);
-			mat_mat_mul(mj_ajc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_Ld_q  , -1.0, 1.0);
-			mat_mat_mul(mj_pjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_Ld_qdd,  1.0, 1.0);
-			mat_mat_mul(Ij    , data.Jfk[j].SubMatrix(3,0,3,njoint), J_Ld_qdd,  1.0, 1.0);
-		}
+		real_t mj = wb->links[j].mass;
+		cross_mat(dlnk.pos_t, mj, mj_pjc);
+		cross_mat(dlnk.vel_t, mj, mj_vjc);
+		cross_mat(dlnk.acc_t, mj, mj_ajc);
+		mat_copy (dlnk.I, Ij);
+		mat_mat_mul(mj_vjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_L_q   , -1.0, 1.0);
+		mat_mat_mul(mj_pjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_L_qd  ,  1.0, 1.0);
+		mat_mat_mul(Ij    , data.Jfk[j].SubMatrix(3,0,3,njoint), J_L_qd  ,  1.0, 1.0);
+		mat_mat_mul(mj_ajc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_Ld_q  , -1.0, 1.0);
+		mat_mat_mul(mj_pjc, data.Jfk[j].SubMatrix(0,0,3,njoint), J_Ld_qdd,  1.0, 1.0);
+		mat_mat_mul(Ij    , data.Jfk[j].SubMatrix(3,0,3,njoint), J_Ld_qdd,  1.0, 1.0);
 	}
 }
 
@@ -528,16 +524,20 @@ void WholebodyKey::Finish(){
 	for(int i = 0; i < nend; i++){
 		End& end = ends[i];
 		WholebodyData::End& dend_des = data_des.ends[i];
+		WholebodyData::End& dend     = data    .ends[i];
 
 		// enforce contact force constraint
-        /*
-		end.var_force_t->val.z = std::max(0.0, end.var_force_t->val.z);
-        end.var_force_t->val.x = std::min(std::max(-dend_des.mu*end.var_force_t->val.z, end.var_force_t->val.x), dend_des.mu*end.var_force_t->val.z);
-        end.var_force_t->val.y = std::min(std::max(-dend_des.mu*end.var_force_t->val.z, end.var_force_t->val.y), dend_des.mu*end.var_force_t->val.z);
-        end.var_force_r->val.x = std::min(std::max( dend_des.cop_min.y*end.var_force_t->val.z, end.var_force_r->val.x),  dend_des.cop_max.y*end.var_force_t->val.z);
-        end.var_force_r->val.y = std::min(std::max(-dend_des.cop_max.x*end.var_force_t->val.z, end.var_force_r->val.y), -dend_des.cop_min.x*end.var_force_t->val.z);
-        end.var_force_r->val.z = std::min(std::max(-100.0, end.var_force_r->val.z), 100.0);
-		*/
+        vec3_t flocal = dend.pos_r.conjugate()*end.var_force_t->val;
+        vec3_t mlocal = dend.pos_r.conjugate()*end.var_force_r->val;
+		real_t fz = flocal.z();
+        flocal.z() = std::max(0.0, flocal.z());
+        flocal.x() = std::min(std::max(-dend_des.mu*fz, flocal.x()),  dend_des.mu*fz);
+        flocal.y() = std::min(std::max(-dend_des.mu*fz, flocal.y()),  dend_des.mu*fz);
+        mlocal.x() = std::min(std::max( dend_des.cop_min.y()*fz, mlocal.x()),  dend_des.cop_max.y()*fz);
+        mlocal.y() = std::min(std::max(-dend_des.cop_max.x()*fz, mlocal.y()), -dend_des.cop_min.x()*fz);
+        mlocal.z() = std::min(std::max( dend_des.cop_min.z()*fz, mlocal.z()),  dend_des.cop_max.z()*fz);
+        end.var_force_t->val = dend.pos_r*flocal;
+        end.var_force_r->val = dend.pos_r*mlocal;
 	}
 }
 
@@ -548,7 +548,8 @@ Wholebody::Param::Param() {
 	gravity    = 9.8;
 	dt         = 0.01;
 	useLd      = true;
-	useJerk    = false;
+	//useJerk    = false;
+    inputMode  = InputMode::Acceleration;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -577,13 +578,14 @@ Wholebody::Joint::Joint(real_t Ir){
 
 //-------------------------------------------------------------------------------------------------
 
-Wholebody::End::End(int _ilink, vec3_t _offset, bool _enable_trn, bool _enable_rot, bool _enable_force, bool _enable_moment){
+Wholebody::End::End(int _ilink, vec3_t _offset, bool _enable_trn, bool _enable_rot, bool _enable_force, bool _enable_moment, bool _enable_terminal){
 	ilink             = _ilink;
 	offset            = _offset;
 	enableTranslation = _enable_trn;
 	enableRotation    = _enable_rot;
 	enableForce       = _enable_force;
 	enableMoment      = _enable_moment;
+    enableTerminalCost = _enable_terminal;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -656,36 +658,27 @@ void Wholebody::Reset(bool reset_all){
 		key->centroid.var_pos_t->val = d.centroid.pos_t;
 		key->centroid.var_pos_r->val = d.centroid.pos_r;
 		key->centroid.var_vel_t->val = d.centroid.vel_t;
-		key->centroid.var_vel_r->val = d.centroid.vel_r;
-		key->centroid.var_acc_t->val = vec3_t::Zero();
-		key->centroid.var_acc_r->val = vec3_t::Zero();
+        key->centroid.var_L    ->val = d.centroid.L_abs;
+		//key->centroid.var_vel_r->val = d.centroid.vel_r;
+		key->centroid.var_acc_t->val = zero3;
+        key->centroid.var_Ld   ->val = zero3;
+		//key->centroid.var_acc_r->val = vec3_t::Zero();
 
 		for(int i = 0; i < njoint; i++){
 			WholebodyKey::Joint& jnt = key->joints[i];
 
 			jnt.var_q   ->val = d.q   [i];
 			jnt.var_qd  ->val = d.qd  [i];
-			if(param.useJerk){
-				jnt.var_qdd ->val = d.qdd [i];
-				if(key->next){
-					jnt.var_qddd->val = d.qddd[i];
-				}
-			}
-			else{
-				if(key->next){
-					jnt.var_qdd ->val = d.qdd [i];
-				}
-			}
+			jnt.var_qdd ->val = d.qdd [i];
+			jnt.var_qddd->val = d.qddd[i];
 		}
 
 		for(int i = 0; i < nend; i++){
 			WholebodyKey ::End&  end  = key->ends[i];
 			WholebodyData::End&  dend = d.ends [i];
 			
-			if(key->next){
-				end.var_force_t->val = dend.force_t;
-				end.var_force_r->val = dend.force_r;
-			}
+			end.var_force_t->val = dend.force_t;
+			end.var_force_r->val = dend.force_r;
 		}
 
 		if(!reset_all)
@@ -714,11 +707,12 @@ void Wholebody::Shift(real_t offset){
 		key0->centroid.var_pos_r->val = key0->centroid.var_pos_r->val*rot_quat((s*theta)*axis);
 
 		key0->centroid.var_vel_t->val = (1-s)*key0->centroid.var_vel_t->val + s*key1->centroid.var_vel_t->val;
-		key0->centroid.var_vel_r->val = (1-s)*key0->centroid.var_vel_r->val + s*key1->centroid.var_vel_r->val;
-		if(key1->next){
-			key0->centroid.var_acc_t->val = (1-s)*key0->centroid.var_acc_t->val + s*key1->centroid.var_acc_t->val;
-			key0->centroid.var_acc_r->val = (1-s)*key0->centroid.var_acc_r->val + s*key1->centroid.var_acc_r->val;
-		}
+        key0->centroid.var_L    ->val = (1-s)*key0->centroid.var_L    ->val + s*key1->centroid.var_L    ->val;
+		//key0->centroid.var_vel_r->val = (1-s)*key0->centroid.var_vel_r->val + s*key1->centroid.var_vel_r->val;
+		
+        key0->centroid.var_acc_t->val = (1-s)*key0->centroid.var_acc_t->val + s*key1->centroid.var_acc_t->val;
+		key0->centroid.var_Ld   ->val = (1-s)*key0->centroid.var_Ld   ->val + s*key1->centroid.var_Ld   ->val;
+		//key0->centroid.var_acc_r->val = (1-s)*key0->centroid.var_acc_r->val + s*key1->centroid.var_acc_r->val;
 
 		for(int i = 0; i < njoint; i++){
 			WholebodyKey::Joint& jnt0 = key0->joints[i];
@@ -726,27 +720,16 @@ void Wholebody::Shift(real_t offset){
 
 			jnt0.var_q   ->val = (1-s)*jnt0.var_q   ->val + s*jnt1.var_q   ->val;
 			jnt0.var_qd  ->val = (1-s)*jnt0.var_qd  ->val + s*jnt1.var_qd  ->val;
-			if(param.useJerk){
-				jnt0.var_qdd ->val = (1-s)*jnt0.var_qdd ->val + s*jnt1.var_qdd ->val;
-				if(key1->next){
-					jnt0.var_qddd ->val = (1-s)*jnt0.var_qddd ->val + s*jnt1.var_qddd ->val;
-				}
-			}
-			else{
-				if(key1->next){
-					jnt0.var_qdd ->val = (1-s)*jnt0.var_qdd ->val + s*jnt1.var_qdd ->val;
-				}
-			}
+			jnt0.var_qdd ->val = (1-s)*jnt0.var_qdd ->val + s*jnt1.var_qdd ->val;
+			jnt0.var_qddd->val = (1-s)*jnt0.var_qddd->val + s*jnt1.var_qddd->val;
 		}
 		
 		for(int i = 0; i < nend; i++){
 			WholebodyKey ::End&  end0 = key0->ends[i];
 			WholebodyKey ::End&  end1 = key1->ends[i];
 			
-			if(key1->next){
-				end0.var_force_t->val = (1-s)*end0.var_force_t->val + s*end1.var_force_t->val;
-				end0.var_force_r->val = (1-s)*end0.var_force_r->val + s*end1.var_force_r->val;
-			}
+			end0.var_force_t->val = (1-s)*end0.var_force_t->val + s*end1.var_force_t->val;
+			end0.var_force_r->val = (1-s)*end0.var_force_r->val + s*end1.var_force_r->val;
 		}
 	}
 }
@@ -772,7 +755,8 @@ void Wholebody::Setup(){
 			key->centroid.var_pos_t->val = d.centroid.pos_t;
 			key->centroid.var_pos_r->val = d.centroid.pos_r;
 			key->centroid.var_vel_t->val = d.centroid.vel_t;
-			key->centroid.var_vel_r->val = d.centroid.vel_r;
+			//key->centroid.var_vel_r->val = d.centroid.vel_r;
+            key->centroid.var_L   ->val  = d.centroid.L_abs;
 			
 			for(int i = 0; i < njoint; i++){
 				WholebodyKey::Joint& jnt = key->joints[i];
@@ -780,9 +764,7 @@ void Wholebody::Setup(){
 				jnt.var_q   ->val = d.q   [i];
 				jnt.var_qd  ->val = d.qd  [i];
 				jnt.var_qdd ->val = d.qdd [i];
-				if(param.useJerk){
-					jnt.var_qddd->val = d.qddd[i];
-				}
+				jnt.var_qddd->val = d.qddd[i];
 			}
 
 			for(int i = 0; i < nend; i++){
@@ -799,60 +781,42 @@ void Wholebody::Setup(){
 		key->centroid.con_des_pos_t->desired = d.centroid.pos_t;
 		key->centroid.con_des_pos_r->desired = d.centroid.pos_r;
 		key->centroid.con_des_vel_t->desired = d.centroid.vel_t;
-		key->centroid.con_des_vel_r->desired = d.centroid.vel_r;
+		key->centroid.con_des_L    ->desired = d.centroid.L_abs;
 		key->centroid.con_des_pos_t->weight  = d.centroid.pos_t_weight;
 		key->centroid.con_des_pos_r->weight  = d.centroid.pos_r_weight;
 		key->centroid.con_des_vel_t->weight  = d.centroid.vel_t_weight;
-		key->centroid.con_des_vel_r->weight  = d.centroid.vel_r_weight;
+		key->centroid.con_des_L    ->weight  = d.centroid.L_weight;
 
-		if(key->next){
-			key->centroid.con_des_acc_t->desired = vec3_t::Zero();
-			key->centroid.con_des_acc_r->desired = vec3_t::Zero();
-			key->centroid.con_des_acc_t->weight  = d.centroid.acc_t_weight;
-			key->centroid.con_des_acc_r->weight  = d.centroid.acc_r_weight;
-
-			key->centroid.con_L->desired = d.centroid.Labs;
-			key->centroid.con_L->weight  = d.centroid.L_weight;
-		}
+		key->centroid.con_des_acc_t->desired = zero3;
+		key->centroid.con_des_Ld   ->desired = zero3;
+		//key->centroid.con_des_acc_r->desired.clear();
+		key->centroid.con_des_acc_t->weight  = d.centroid.acc_t_weight;
+		key->centroid.con_des_Ld   ->weight  = d.centroid.Ld_weight;
+		//key->centroid.con_des_acc_r->weight  = d.centroid.acc_r_weight;
 
 		for(int i = 0; i < njoint; i++){
 			WholebodyKey::Joint& jnt = key->joints[i];
 			
 			jnt.con_des_q   ->desired = d.q   [i];
 			jnt.con_des_qd  ->desired = d.qd  [i];
+			jnt.con_des_qdd ->desired = d.qdd [i];
+			jnt.con_des_qddd->desired = d.qddd[i];
+
 			jnt.con_des_q   ->weight[0] = d.q_weight   [i];
 			jnt.con_des_qd  ->weight[0] = d.qd_weight  [i];
+			jnt.con_des_qdd ->weight[0] = d.qdd_weight [i];
+			jnt.con_des_qddd->weight[0] = d.qddd_weight[i];
 			
-			if(param.useJerk){
-				jnt.con_des_qdd ->desired = d.qdd [i];
-				jnt.con_des_qdd ->weight[0] = d.qdd_weight [i];
-			
-				if(key->next){
-					jnt.con_des_qddd ->desired   = d.qddd [i];
-					jnt.con_des_qddd ->weight[0] = d.qddd_weight [i];
-				}
-			}
-			else{
-				if(key->next){
-					jnt.con_des_qdd ->desired = d.qdd [i];
-					jnt.con_des_qdd ->weight[0] = d.qdd_weight [i];
-				}
-			}
-			
-			jnt.con_range_q ->_min = d.q_min [i];
-			jnt.con_range_q ->_max = d.q_max [i];
-			jnt.con_range_q ->weight[0] = 0.0;
-			jnt.con_range_qd->_min = d.qd_min[i];
-			jnt.con_range_qd->_max = d.qd_max[i];
-			jnt.con_range_qd->weight[0] = 0.0;
+			jnt.con_range_q  ->_min = d.q_min  [i];
+			jnt.con_range_q  ->_max = d.q_max  [i];
+			jnt.con_range_qd ->_min = d.qd_min [i];
+			jnt.con_range_qd ->_max = d.qd_max [i];
 			jnt.con_range_qdd->_min = d.qdd_min[i];
 			jnt.con_range_qdd->_max = d.qdd_max[i];
+
+			jnt.con_range_q  ->weight[0] = 0.0;
+			jnt.con_range_qd ->weight[0] = 0.0;
 			jnt.con_range_qdd->weight[0] = 0.0;
-			//if(key->next){
-			//	jnt.con_range_qdd->_min = d.qdd_min[i];
-			//	jnt.con_range_qdd->_max = d.qdd_max[i];
-			//	jnt.con_range_qdd->weight[0] = 0.0;
-			//}
 		}
 
 		for(int i = 0; i < nend; i++){
@@ -895,48 +859,46 @@ void Wholebody::Setup(){
 				end.con_contact_vel_r->weight = vec3_t(0.0, 0.0, 0.0);
 			}
 	
-			if(key->next){
-				end.con_des_force_t->desired = dend.force_t;
-				end.con_des_force_r->desired = dend.force_r;
-				end.con_des_force_t->weight = dend.force_t_weight;
-				end.con_des_force_r->weight = dend.force_r_weight;
+			end.con_des_force_t->desired = dend.force_t;
+			end.con_des_force_r->desired = dend.force_r;
+			end.con_des_force_t->weight = dend.force_t_weight;
+			end.con_des_force_r->weight = dend.force_r_weight;
 
-				end.con_force_normal->active  = (dend.state != ContactState::Free);
-				end.con_force_normal->weight[0] = 5.0;
-				end.con_force_normal->barrier_margin = 0.00001;
+			end.con_force_normal->active  = (dend.state != ContactState::Free);
+			end.con_force_normal->weight[0] = 5.0;
+			end.con_force_normal->barrier_margin = 0.00001;
 
-				end.con_force_friction[0][0]->active = (dend.state != ContactState::Free);
-				end.con_force_friction[0][1]->active = (dend.state != ContactState::Free);
-				end.con_force_friction[1][0]->active = (dend.state != ContactState::Free);
-				end.con_force_friction[1][1]->active = (dend.state != ContactState::Free);
-				end.con_force_friction[0][0]->weight[0] = 5.0;
-				end.con_force_friction[0][1]->weight[0] = 5.0;
-				end.con_force_friction[1][0]->weight[0] = 5.0;
-				end.con_force_friction[1][1]->weight[0] = 5.0;
-				end.con_force_friction[0][0]->barrier_margin = 0.00001;
-				end.con_force_friction[0][1]->barrier_margin = 0.00001;
-				end.con_force_friction[1][0]->barrier_margin = 0.00001;
-				end.con_force_friction[1][1]->barrier_margin = 0.00001;
+			end.con_force_friction[0][0]->active = (dend.state != ContactState::Free);
+			end.con_force_friction[0][1]->active = (dend.state != ContactState::Free);
+			end.con_force_friction[1][0]->active = (dend.state != ContactState::Free);
+			end.con_force_friction[1][1]->active = (dend.state != ContactState::Free);
+			end.con_force_friction[0][0]->weight[0] = 5.0;
+			end.con_force_friction[0][1]->weight[0] = 5.0;
+			end.con_force_friction[1][0]->weight[0] = 5.0;
+			end.con_force_friction[1][1]->weight[0] = 5.0;
+			end.con_force_friction[0][0]->barrier_margin = 0.00001;
+			end.con_force_friction[0][1]->barrier_margin = 0.00001;
+			end.con_force_friction[1][0]->barrier_margin = 0.00001;
+			end.con_force_friction[1][1]->barrier_margin = 0.00001;
 				
-				end.con_moment[0][0]->active = (dend.state != ContactState::Free);
-				end.con_moment[0][1]->active = (dend.state != ContactState::Free);
-				end.con_moment[1][0]->active = (dend.state != ContactState::Free);
-				end.con_moment[1][1]->active = (dend.state != ContactState::Free);
-				end.con_moment[2][0]->active = (dend.state != ContactState::Free);
-				end.con_moment[2][1]->active = (dend.state != ContactState::Free);
-				end.con_moment[0][0]->weight[0] = 5.0;
-				end.con_moment[0][1]->weight[0] = 5.0;
-				end.con_moment[1][0]->weight[0] = 5.0;
-				end.con_moment[1][1]->weight[0] = 5.0;
-				end.con_moment[2][0]->weight[0] = 5.0;
-				end.con_moment[2][1]->weight[0] = 5.0;
-				end.con_moment[0][0]->barrier_margin = 0.00001;
-				end.con_moment[0][1]->barrier_margin = 0.00001;
-				end.con_moment[1][0]->barrier_margin = 0.00001;
-				end.con_moment[1][1]->barrier_margin = 0.00001;
-				end.con_moment[2][0]->barrier_margin = 0.00001;
-				end.con_moment[2][1]->barrier_margin = 0.00001;
-			}
+			end.con_moment[0][0]->active = (dend.state != ContactState::Free);
+			end.con_moment[0][1]->active = (dend.state != ContactState::Free);
+			end.con_moment[1][0]->active = (dend.state != ContactState::Free);
+			end.con_moment[1][1]->active = (dend.state != ContactState::Free);
+			end.con_moment[2][0]->active = (dend.state != ContactState::Free);
+			end.con_moment[2][1]->active = (dend.state != ContactState::Free);
+			end.con_moment[0][0]->weight[0] = 5.0;
+			end.con_moment[0][1]->weight[0] = 5.0;
+			end.con_moment[1][0]->weight[0] = 5.0;
+			end.con_moment[1][1]->weight[0] = 5.0;
+			end.con_moment[2][0]->weight[0] = 5.0;
+			end.con_moment[2][1]->weight[0] = 5.0;
+			end.con_moment[0][0]->barrier_margin = 0.00001;
+			end.con_moment[0][1]->barrier_margin = 0.00001;
+			end.con_moment[1][0]->barrier_margin = 0.00001;
+			end.con_moment[1][1]->barrier_margin = 0.00001;
+			end.con_moment[2][0]->barrier_margin = 0.00001;
+			end.con_moment[2][1]->barrier_margin = 0.00001;
 		}
 	}
 	/*
@@ -1168,7 +1130,7 @@ void Wholebody::CalcComAcceleration (WholebodyData& d){
     d.centroid.acc_t = (1.0/param.totalMass)*fsum - vec3_t(0.0, 0.0, param.gravity);
 }
 
-void Wholebody::CalcBaseAcceleration(WholebodyData& d){
+void Wholebody::CalcBaseAngularAcceleration(WholebodyData& d){
 	vec3_t msum;
 	
 	int nend = (int)ends.size();
@@ -1177,9 +1139,9 @@ void Wholebody::CalcBaseAcceleration(WholebodyData& d){
         msum += dend.force_r + (d.centroid.pos_r*dend.pos_t).cross(dend.force_t);
     }
 	if(param.useLd){
-		msum -= (d.centroid.Id*d.centroid.vel_r + d.centroid.vel_r.cross(d.centroid.pos_r*d.centroid.L) + d.centroid.pos_r*d.centroid.Ld);
+		msum -= (d.centroid.Id_abs*d.centroid.vel_r + d.centroid.vel_r.cross(d.centroid.pos_r*d.centroid.L_local) + d.centroid.pos_r*d.centroid.Ld_local);
 	}
-    d.centroid.acc_r = d.centroid.Iinv*msum;
+    d.centroid.acc_r = d.centroid.I_abs_inv*msum;
 }
 
 void Wholebody::CalcJacobian(WholebodyData& d){
@@ -1276,7 +1238,7 @@ void Wholebody::CalcJacobian(WholebodyData& d){
 	}
 }
 
-void Wholebody::CalcMomentum(WholebodyData& d){
+void Wholebody::CalcInertia(WholebodyData& d){
 	int nlink = (int)links.size();
 
 	// calc inertial matrix
@@ -1290,33 +1252,12 @@ void Wholebody::CalcMomentum(WholebodyData& d){
 		d.centroid.I_local += links[j].mass*(pjc*pjc.transpose()) + dlnk.I;
 	}
 	mat3_t R = d.centroid.pos_r.toRotationMatrix();
-	d.centroid.I = R*d.centroid.I_local*R.transpose();
-	d.centroid.Iinv = d.centroid.I.inverse();
-
-	// calc momentum in local coordinate
-	d.centroid.L = vec3_t::Zero();
-	for(int j = 0; j < nlink; j++){
-		WholebodyData::Link& dlnk  = d.links[j];
-		
-		d.centroid.L += dlnk.pos_t.cross(links[j].mass*dlnk.vel_t) + dlnk.I*dlnk.vel_r;
-	}
-
-	// momentum in global coordinate
-	d.centroid.Labs = d.centroid.I*d.centroid.vel_r + d.centroid.pos_r*d.centroid.L;
+	d.centroid.I_abs = R*d.centroid.I_local*R.transpose();
+	d.centroid.I_abs_inv = d.centroid.I_abs.inverse();
 }
 
-void Wholebody::CalcMomentumDerivative(WholebodyData& d){
+void Wholebody::CalcInertiaDerivative(WholebodyData& d){
 	int nlink = (int)links.size();
-
-	// calc momentum derivative in local coordinate
-	d.centroid.Ld = vec3_t::Zero();
-	for(int j = 0; j < nlink; j++){
-		WholebodyData::Link& dlnk  = d.links[j];
-
-		d.centroid.Ld += dlnk.pos_t.cross(links[j].mass*dlnk.acc_t) 
-			          +  dlnk.vel_r.cross(dlnk.I*dlnk.vel_r)
-			          +  dlnk.I*dlnk.acc_r;
-	}
 
 	d.centroid.Id_local = mat3_t::Zero();
 	for(int j = 0; j < nlink; j++){
@@ -1331,7 +1272,43 @@ void Wholebody::CalcMomentumDerivative(WholebodyData& d){
 
 	mat3_t wc = cross_mat(d.centroid.vel_r);
 	mat3_t R  = d.centroid.pos_r.toRotationMatrix();
-	d.centroid.Id = wc*d.centroid.I + d.centroid.I*wc.transpose() + R*d.centroid.Id_local*R.transpose();
+	d.centroid.Id_abs = wc*d.centroid.I_abs + d.centroid.I_abs*wc.transpose() + R*d.centroid.Id_local*R.transpose();
+}
+
+void Wholebody::CalcLocalMomentum(WholebodyData& d){
+	int nlink = (int)links.size();
+
+	// calc momentum in local coordinate
+	d.centroid.L_local = zero3;
+	for(int j = 0; j < nlink; j++){
+		WholebodyData::Link& dlnk  = d.links[j];
+		
+		d.centroid.L_local += dlnk.pos_t.cross(links[j].mass*dlnk.vel_t)
+			               +  dlnk.I*dlnk.vel_r;
+	}
+}
+
+void Wholebody::CalcLocalMomentumDerivative(WholebodyData& d){
+	int nlink = (int)links.size();
+
+	// calc momentum derivative in local coordinate
+	d.centroid.Ld_local = zero3;
+	for(int j = 0; j < nlink; j++){
+		WholebodyData::Link& dlnk  = d.links[j];
+
+		d.centroid.Ld_local += dlnk.pos_t.cross(links[j].mass*dlnk.acc_t) 
+			                +  dlnk.vel_r.cross(dlnk.I*dlnk.vel_r)
+			                +  dlnk.I*dlnk.acc_r;
+	}
+}
+
+void Wholebody::CalcAbsoluteMomentum(WholebodyData& d){
+	// momentum in global coordinate
+	d.centroid.L_abs = d.centroid.I_abs*d.centroid.vel_r + d.centroid.pos_r*d.centroid.L_local;
+}
+
+void Wholebody::CalcBaseAngularVelocity(WholebodyData& d){
+	d.centroid.vel_r = d.centroid.I_abs_inv*(d.centroid.L_abs - d.centroid.pos_r*d.centroid.L_local);
 }
 	
 void Wholebody::CalcForce(WholebodyData & d){
@@ -1543,9 +1520,7 @@ WholebodyJointPosCon::WholebodyJointPosCon(Solver* solver, string _name, Wholebo
 	AddSLink(obj[0]->joints[ijoint].var_q   );
 	AddSLink(obj[0]->joints[ijoint].var_qd  );
 	AddSLink(obj[0]->joints[ijoint].var_qdd );
-	if(obj[0]->wb->param.useJerk){
-		AddSLink(obj[0]->joints[ijoint].var_qddd);
-	}
+	AddSLink(obj[0]->joints[ijoint].var_qddd);
 }
 
 WholebodyJointVelCon::WholebodyJointVelCon(Solver* solver, string _name, WholebodyKey* _obj, int _ijoint, real_t _scale):
@@ -1556,9 +1531,7 @@ WholebodyJointVelCon::WholebodyJointVelCon(Solver* solver, string _name, Wholebo
 	AddSLink(obj[1]->joints[ijoint].var_qd  );
 	AddSLink(obj[0]->joints[ijoint].var_qd  );
 	AddSLink(obj[0]->joints[ijoint].var_qdd );
-	if(obj[0]->wb->param.useJerk){
-		AddSLink(obj[0]->joints[ijoint].var_qddd);
-	}
+	AddSLink(obj[0]->joints[ijoint].var_qddd);
 }
 
 WholebodyJointAccCon::WholebodyJointAccCon(Solver* solver, string _name, WholebodyKey* _obj, int _ijoint, real_t _scale):
@@ -1601,10 +1574,18 @@ WholebodyCentroidPosConR::WholebodyCentroidPosConR(Solver* solver, string _name,
 
 	AddSLink (obj[1]->centroid.var_pos_r);
 	AddM3Link(obj[0]->centroid.var_pos_r);
-	AddM3Link(obj[0]->centroid.var_vel_r);
-	AddM3Link(obj[0]->centroid.var_acc_r);
+	AddM3Link(obj[0]->centroid.var_L);
+	//AddM3Link(obj[0]->centroid.var_vel_r);
+	//AddM3Link(obj[0]->centroid.var_acc_r);
 
-	if(obj[0]->wb->param.useLd){
+    int njoint = (int)obj[0]->joints.size();
+	for(int i = 0; i < njoint; i++)
+		AddC3Link(obj[0]->joints[i].var_q);
+	for(int i = 0; i < njoint; i++)
+		AddC3Link(obj[0]->joints[i].var_qd);
+
+	/*
+    if(obj[0]->wb->param.useLd){
 		int njoint = (int)obj[0]->joints.size();
 		for(int i = 0; i < njoint; i++)
 			AddC3Link(obj[0]->joints[i].var_q);
@@ -1616,8 +1597,22 @@ WholebodyCentroidPosConR::WholebodyCentroidPosConR(Solver* solver, string _name,
 		AddM3Link(obj[0]->ends[i].var_force_t);
 		AddM3Link(obj[0]->ends[i].var_force_r);
 	}
+    */
 }
+WholebodyCentroidLCon::WholebodyCentroidLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale):
+	WholebodyCon(solver, 3, ConTag::WholebodyMomentum, _name, _obj, _scale) {
 
+	AddSLink(obj[1]->centroid.var_L);
+	AddSLink(obj[0]->centroid.var_L);
+	AddSLink(obj[0]->centroid.var_Ld);
+	
+	int nend = (int)obj[0]->ends.size();
+	for(int i = 0; i < nend; i++){
+		AddX3Link(obj[0]->ends[i].var_force_t);
+		AddSLink (obj[0]->ends[i].var_force_r);
+	}
+}
+/*
 WholebodyCentroidVelConR::WholebodyCentroidVelConR(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale):
 	WholebodyCon(solver, 3, ConTag::WholebodyVelR, _name, _obj, _scale) {
 
@@ -1638,7 +1633,7 @@ WholebodyCentroidVelConR::WholebodyCentroidVelConR(Solver* solver, string _name,
 		AddM3Link(obj[0]->ends[i].var_force_r);
 	}
 }
-
+*/
 WholebodyDesPosConT::WholebodyDesPosConT(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale):
 	Constraint(solver, 3, ID(ConTag::WholebodyPosT, _obj->model, _name), Constraint::Type::Equality, _scale){
 	obj = _obj;
@@ -1672,7 +1667,8 @@ WholebodyDesVelConT::WholebodyDesVelConT(Solver* solver, string _name, Wholebody
 	iend = _iend;
 
 	AddSLink (obj->centroid.var_vel_t);
-	AddX3Link(obj->centroid.var_vel_r);
+	//AddX3Link(obj->centroid.var_vel_r);
+    AddM3Link(obj->centroid.var_L);
 
 	int njoint = (int)obj->joints.size();
 	for(int i = 0; i < njoint; i++){
@@ -1686,7 +1682,8 @@ WholebodyDesVelConR::WholebodyDesVelConR(Solver* solver, string _name, Wholebody
 	obj = _obj;
 	iend = _iend;
 
-	AddSLink (obj->centroid.var_vel_r);
+	AddM3Link (obj->centroid.var_L);
+	//AddSLink (obj->centroid.var_vel_r);
 	
 	int njoint = (int)obj->joints.size();
 	for(int i = 0; i < njoint; i++){
@@ -1694,7 +1691,7 @@ WholebodyDesVelConR::WholebodyDesVelConR(Solver* solver, string _name, Wholebody
 		AddC3Link(obj->joints[i].var_qd);
 	}
 }
-
+/*
 WholebodyLCon::WholebodyLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale):
 	Constraint(solver, 3, ID(ConTag::WholebodyMomentum, _obj->model, _name), Constraint::Type::Equality, _scale){
 	obj = _obj;
@@ -1709,7 +1706,7 @@ WholebodyLCon::WholebodyLCon(Solver* solver, string _name, WholebodyKey* _obj, r
 		AddC3Link(obj->joints[i].var_qd);
 
 }
-
+*/
 WholebodyContactPosConT::WholebodyContactPosConT(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale):
 	Constraint(solver, 3, ID(ConTag::WholebodyContactPosT, _obj->model, _name), Constraint::Type::Equality, _scale){
 	obj  = _obj;
@@ -1741,7 +1738,8 @@ WholebodyContactVelConT::WholebodyContactVelConT(Solver* solver, string _name, W
 	iend = _iend;
     
 	AddM3Link(obj->centroid.var_vel_t);
-	AddM3Link(obj->centroid.var_vel_r);
+	//AddM3Link(obj->centroid.var_vel_r);
+	AddM3Link(obj->centroid.var_L);
 
 	int njoint = (int)obj->joints.size();
 	for(int i = 0; i < njoint; i++)
@@ -1753,7 +1751,8 @@ WholebodyContactVelConR::WholebodyContactVelConR(Solver* solver, string _name, W
 	obj  = _obj;
 	iend = _iend;
 	
-	AddM3Link(obj->centroid.var_vel_r);
+	//AddM3Link(obj->centroid.var_vel_r);
+	AddM3Link(obj->centroid.var_L);
 
 	int njoint = (int)obj->joints.size();
 	for(int i = 0; i < njoint; i++)
@@ -1795,7 +1794,7 @@ void WholebodyJointPosCon::Prepare(){
 	q0     = obj[0]->joints[ijoint].var_q   ->val;
 	qd0    = obj[0]->joints[ijoint].var_qd  ->val;
 	qdd0   = obj[0]->joints[ijoint].var_qdd ->val;
-	qddd0  = (obj[0]->wb->param.useJerk ? obj[0]->joints[ijoint].var_qddd->val : 0.0);
+	qddd0  = obj[0]->joints[ijoint].var_qddd->val;
 	q1     = obj[1]->joints[ijoint].var_q   ->val;
 	h      = obj[0]->hnext;
 	h2     = h*h;
@@ -1807,7 +1806,7 @@ void WholebodyJointPosCon::Prepare(){
 void WholebodyJointVelCon::Prepare(){
 	qd0     = obj[0]->joints[ijoint].var_qd  ->val;
 	qdd0    = obj[0]->joints[ijoint].var_qdd ->val;
-	qddd0  = (obj[0]->wb->param.useJerk ? obj[0]->joints[ijoint].var_qddd->val : 0.0);
+	qddd0   = obj[0]->joints[ijoint].var_qddd->val;
 	qd1     = obj[1]->joints[ijoint].var_qd  ->val;
 	h       = obj[0]->hnext;
 	h2      = h*h;
@@ -1849,23 +1848,31 @@ void WholebodyCentroidVelConT::Prepare(){
 }
 
 void WholebodyCentroidPosConR::Prepare(){
-	w0    = obj[0]->centroid.var_vel_r->val;
-	q1    = obj[1]->centroid.var_pos_r->val;
+	w0    = obj[0]->data.centroid.vel_r;
+	q1    = obj[1]->data.centroid.pos_r;
 	h     = obj[0]->hnext;
-	h2    = h*h;
-	L     = obj[0]->data.centroid.L;
-	Ld    = obj[0]->data.centroid.Ld;
-	Id    = obj[0]->data.centroid.Id;
-	Iinv  = obj[0]->data.centroid.Iinv;
-	u0    = obj[0]->centroid.var_acc_r->val + Iinv*(obj[0]->msum - (obj[0]->wb->param.useLd ? vec3_t(Id*w0 + w0.cross(obj[0]->q0*L) + obj[0]->q0*Ld) : zero3));
-	omega = h*w0 + (0.5*h2)*u0;
+	//h2    = h*h;
+	//L     = obj[0]->data.centroid.L;
+	//Ld    = obj[0]->data.centroid.Ld;
+	//Id    = obj[0]->data.centroid.Id;
+	Iinv  = obj[0]->data.centroid.I_abs_inv;
+	//u0    = obj[0]->centroid.var_acc_r->val + Iinv*(obj[0]->msum - (obj[0]->wb->param.useLd ? vec3_t(Id*w0 + w0.cross(obj[0]->q0*L) + obj[0]->q0*Ld) : zero3));
+	//omega = h*w0 + (0.5*h2)*u0;
 	q_omega = rot_quat(omega);
 	R_omega = q_omega.toRotationMatrix();
 	A_omega = rot_jacobian(omega);
 
 	q_rhs = q_omega*obj[0]->q0;
 }
-
+void WholebodyCentroidLCon::Prepare(){
+	L0   = obj[0]->centroid.var_L->val;
+	L1   = obj[1]->centroid.var_L->val;
+	h    = obj[0]->hnext;
+	Ld0  = obj[0]->centroid.var_Ld->val + obj[0]->msum;
+	
+	L_rhs = L0 + h*Ld0;
+}
+/*
 void WholebodyCentroidVelConR::Prepare(){
 	pc   = obj[0]->centroid.var_pos_t->val;
 	w0   = obj[0]->centroid.var_vel_r->val;
@@ -1879,7 +1886,7 @@ void WholebodyCentroidVelConR::Prepare(){
 	
 	w_rhs = w0 + h*u0;
 }
-
+*/
 void WholebodyDesPosConT::Prepare(){
 	Wholebody::End&      end  = obj->wb->ends[iend];
 	WholebodyData::End&  dend = obj->data.ends[iend];
@@ -1916,32 +1923,35 @@ void WholebodyDesVelConT::Prepare(){
 	WholebodyData::End&  dend = obj->data.ends[iend];
 	WholebodyData::Link& dlnk = obj->data.links[end.ilink];
 
-	vc = obj->centroid.var_vel_t->val;
-	q0 = obj->centroid.var_pos_r->val;
+	vc = obj->data.centroid.vel_t;
+	q0 = obj->data.centroid.pos_r;
 	R0 = q0.toRotationMatrix();
-	w0 = obj->centroid.var_vel_r->val;
+	w0 = obj->data.centroid.vel_r;
 	ve = vc + q0*dend.vel_t + w0.cross(q0*dend.pos_t);
 	oe = end.offset;
 	pi = dlnk.pos_t;
 	qi = dlnk.pos_r;
 	ci = obj->wb->links[end.ilink].center;
 	r  = (qi*(oe - ci));
+    pi_abs = q0*(pi + r);
+	Iinv = obj->data.centroid.I_abs_inv;
 }
 
 void WholebodyDesVelConR::Prepare(){
 	WholebodyKey::End& end = obj->ends[iend];
 	WholebodyData::End& dend = obj->data.ends[iend];
 
-	q0 = obj->centroid.var_pos_r->val;
+	q0 = obj->data.centroid.pos_r;
 	R0 = q0.toRotationMatrix();
-	w0 = obj->centroid.var_vel_r->val;
+	w0 = obj->data.centroid.vel_r;
 	we = w0 + q0*dend.vel_r;
+    Iinv = obj->data.centroid.I_abs_inv;
 }
-
+/*
 void WholebodyLCon::Prepare(){
 	Rf = obj->data.centroid.pos_r.toRotationMatrix();
 }
-
+*/
 void WholebodyContactPosConT::Prepare(){
 	WholebodyData::End&  dend  = obj->data.ends[iend];
 	WholebodyData::End&  dend_des  = obj->data_des.ends[iend];
@@ -1975,14 +1985,15 @@ void WholebodyContactVelConT::Prepare(){
 	qo = dend_des.pos_rc;
 	Ro = qo.toRotationMatrix();
 	r  = dend_des.pos_te;
-	vc = obj->centroid.var_vel_t->val;
-	q0 = obj->centroid.var_pos_r->val;
+	vc = obj->data.centroid.vel_t;
+	q0 = obj->data.centroid.pos_r;
 	R0 = q0.toRotationMatrix();
-	w0 = obj->centroid.var_vel_r->val;
+	w0 = obj->data.centroid.vel_r;
 	pi = dend.pos_t;
 	qi = dend.pos_r;
 	vi = dend.vel_t;
 	wi = dend.vel_r;
+    Iinv = obj->data.centroid.I_abs_inv;
 }
 
 void WholebodyContactVelConR::Prepare(){
@@ -1991,18 +2002,22 @@ void WholebodyContactVelConR::Prepare(){
 	
 	qo = dend_des.pos_rc;
 	Ro = qo.toRotationMatrix();
-	q0 = obj->centroid.var_pos_r->val;
+	q0 = obj->data.centroid.pos_r;
 	R0 = q0.toRotationMatrix();
-	w0 = obj->centroid.var_vel_r->val;
+	w0 = obj->data.centroid.vel_r;
 	qi = dend.pos_r;
 	wi = dend.vel_r;
+    Iinv = obj->data.centroid.I_abs_inv;
 }
 
 void WholebodyNormalForceCon::Prepare(){
 	WholebodyKey ::End& end  = obj->ends[iend];
 	WholebodyData::End& dend = obj->data.ends[iend];
 
-	fn = end.var_force_t->val.z();
+	qi = dend.pos_r;
+	nz = qi*ez;
+	f  = end.var_force_t->val;
+	fz = nz.dot(f);
 }
 
 void WholebodyFrictionForceCon::Prepare(){
@@ -2011,9 +2026,14 @@ void WholebodyFrictionForceCon::Prepare(){
 	WholebodyData::End& dend_des = obj->data_des.ends[iend];
 
 	mu = dend_des.mu;
-	vec3_t f = end.var_force_t->val;
-	ft = (dir == 0 ? f.x() : f.y());
-	fn = f.z();
+	qi = dend.pos_r;
+	nx = qi*ex;
+	ny = qi*ey;
+	nz = qi*ez;
+	f  = end.var_force_t->val;
+	ft = (dir == 0 ? nx : ny).dot(f);
+	fz = nz.dot(f);
+	df = (side == 0 ? -1.0 : 1.0)*(dir == 0 ? nx : ny) + mu*nz;
 }
 
 void WholebodyMomentCon::Prepare(){
@@ -2021,10 +2041,31 @@ void WholebodyMomentCon::Prepare(){
 	WholebodyData::End& dend = obj->data.ends[iend];
 	WholebodyData::End& dend_des = obj->data_des.ends[iend];
 
-	fn   = std::max(end.var_force_t->val.z(), 0.0);
-	m    = end.var_force_r->val;
+	qi   = dend.pos_r;
+	nx   = qi*ex;
+	ny   = qi*ey;
+	nz   = qi*ez;
+	f    = end.var_force_t->val;
+	eta  = end.var_force_r->val;
+	etax = nx.dot(eta);
+	etay = ny.dot(eta);
+	etaz = nz.dot(eta);
+	fz   = std::max(nz.dot(f), 0.0);
 	cmin = dend_des.cop_min;
 	cmax = dend_des.cop_max;
+
+	if(dir == 0){
+		df   = (side == 0 ? -cmin.x() : cmax.x())*nz;
+		deta = (side == 0 ? -1.0 :  1.0)*ny;
+	}
+	if(dir == 1){
+		df   = (side == 0 ? -cmin.y() : cmax.y())*nz;
+		deta = (side == 0 ?  1.0 : -1.0)*nx;
+	}
+	if(dir == 2){
+		df   = (side == 0 ? -cmin.z() : cmax.z())*nz;
+		deta = (side == 0 ?  1.0 : -1.0)*nz;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2037,9 +2078,7 @@ void WholebodyJointPosCon::CalcCoef(){
 	dynamic_cast<SLink*>(links[idx++])->SetCoef(-1.0);
 	dynamic_cast<SLink*>(links[idx++])->SetCoef(-h);
 	dynamic_cast<SLink*>(links[idx++])->SetCoef(-(1.0/2.0)*h2);
-	if(obj[0]->wb->param.useJerk){
-		dynamic_cast<SLink*>(links[idx++])->SetCoef(-(1.0/6.0)*h3);
-	}
+	dynamic_cast<SLink*>(links[idx++])->SetCoef(-(1.0/6.0)*h3);
 }
 
 void WholebodyJointVelCon::CalcCoef(){
@@ -2049,9 +2088,7 @@ void WholebodyJointVelCon::CalcCoef(){
 	dynamic_cast<SLink*>(links[idx++])->SetCoef( 1.0);
 	dynamic_cast<SLink*>(links[idx++])->SetCoef(-1.0);
 	dynamic_cast<SLink*>(links[idx++])->SetCoef(-h);
-	if(obj[0]->wb->param.useJerk){
-		dynamic_cast<SLink*>(links[idx++])->SetCoef(-(1.0/2.0)*h2);
-	}
+	dynamic_cast<SLink*>(links[idx++])->SetCoef(-(1.0/2.0)*h2);
 }
 
 void WholebodyJointAccCon::CalcCoef(){
@@ -2095,6 +2132,22 @@ void WholebodyCentroidVelConT::CalcCoef(){
 void WholebodyCentroidPosConR::CalcCoef(){
 	Prepare();
 
+    mat3_t tmp   = A_omega*(h*Iinv);
+	mat3_t tmpR0 = tmp*obj[0]->R0;
+	
+	int idx = 0;
+	dynamic_cast<SLink *>(links[idx++])->SetCoef( 1.0);
+	dynamic_cast<M3Link*>(links[idx++])->SetCoef(-R_omega);
+	dynamic_cast<M3Link*>(links[idx++])->SetCoef(-tmp);
+
+	int njoint = (int)obj[0]->joints.size();
+	for(int i = 0; i < njoint; i++){
+		dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_q.Col(i)(0)))));
+	}
+	for(int i = 0; i < njoint; i++){
+		dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_qd.Col(i)(0)))));
+	}
+    /*
 	mat3_t tmp = A_omega*((0.5*h2)*Iinv);
 	mat3_t tmpR0 = tmp*obj[0]->R0;
 	
@@ -2118,8 +2171,23 @@ void WholebodyCentroidPosConR::CalcCoef(){
 		dynamic_cast<M3Link*>(links[idx++])->SetCoef(-tmp*obj[0]->rec[i]);
 		dynamic_cast<M3Link*>(links[idx++])->SetCoef(-tmp);
 	}
+    */
 }
+void WholebodyCentroidLCon::CalcCoef(){
+	Prepare();
 
+	int idx = 0;
+	dynamic_cast<SLink*>(links[idx++])->SetCoef( 1.0);
+	dynamic_cast<SLink*>(links[idx++])->SetCoef(-1.0);
+	dynamic_cast<SLink*>(links[idx++])->SetCoef(-h);
+	
+	int nend = (int)obj[0]->ends.size();
+	for(int i = 0; i < nend; i++){
+		dynamic_cast<X3Link*>(links[idx++])->SetCoef(-h*obj[0]->re[i]);
+		dynamic_cast<SLink* >(links[idx++])->SetCoef(-h);
+	}
+}
+/*
 void WholebodyCentroidVelConR::CalcCoef(){
 	Prepare();
 
@@ -2146,7 +2214,7 @@ void WholebodyCentroidVelConR::CalcCoef(){
 		dynamic_cast<M3Link*>(links[idx++])->SetCoef(-tmp);
 	}
 }
-
+*/
 void WholebodyDesPosConT::CalcCoef(){
 	Prepare();
 
@@ -2190,8 +2258,9 @@ void WholebodyDesVelConT::CalcCoef(){
 
 	int idx = 0;
 	dynamic_cast<SLink *>(links[idx++])->SetCoef(1.0);
-	dynamic_cast<X3Link*>(links[idx++])->SetCoef(-(q0*(pi + r)));
-	
+	//dynamic_cast<X3Link*>(links[idx++])->SetCoef(-(q0*(pi + r)));
+	dynamic_cast<M3Link*>(links[idx++])->SetCoef(-cross_mat(pi_abs)*Iinv);
+
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
 
@@ -2200,8 +2269,10 @@ void WholebodyDesVelConT::CalcCoef(){
 		//vec3_t& Hw = *((vec3_t*)&(obj->R0_Hfk[i].Col(j).SubVector(3,3)(0)));
 		vec3_t& Jv = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(0,3)(0)));
 		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Hv + Hw % r);
-		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r));
+		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r));
+        dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r) + pi_abs.cross(Iinv*(q0*JL)));
 	}
 }
 
@@ -2211,7 +2282,8 @@ void WholebodyDesVelConR::CalcCoef(){
 	// we = w0 + q0*wi
 
 	int idx = 0;
-	dynamic_cast<SLink *>(links[idx++])->SetCoef(1.0);
+	//dynamic_cast<SLink *>(links[idx++])->SetCoef(1.0);
+    dynamic_cast<M3Link*>(links[idx++])->SetCoef(Iinv);
 
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
@@ -2219,11 +2291,13 @@ void WholebodyDesVelConR::CalcCoef(){
 	for(int j = 0; j < njoint; j++){
 		//vec3_t& Hw = *((vec3_t*)&(obj->R0_Hfk[i].Col(j).SubVector(3,3)(0)));
 		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Hw);
-		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw);
+		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw);
+        dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw - Iinv*(q0*JL));
 	}
 }
-
+/*
 void WholebodyLCon::CalcCoef(){
 	Prepare();
 
@@ -2239,7 +2313,7 @@ void WholebodyLCon::CalcCoef(){
 	for(int j = 0; j < njoint; j++)
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Rf*(*(vec3_t*)&(obj->J_L_qd.Col(j)(0))));
 }
-
+*/
 void WholebodyContactPosConT::CalcCoef(){
 	/*
 	y  = qo^T*(pc + q0*(pi + qi*r) - po)
@@ -2284,7 +2358,8 @@ void WholebodyContactVelConT::CalcCoef(){
 
 	int idx = 0;
 	dynamic_cast<M3Link*>(links[idx++])->SetCoef( Ro.transpose());
-	dynamic_cast<M3Link*>(links[idx++])->SetCoef(-Ro.transpose()*cross_mat(q0*(pi + qi*r)));
+	//dynamic_cast<M3Link*>(links[idx++])->SetCoef(-Ro.transpose()*cross_mat(q0*(pi + qi*r)));
+    dynamic_cast<M3Link*>(links[idx++])->SetCoef(-Ro.transpose()*cross_mat(q0*(pi + qi*r))*Iinv);
 
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
@@ -2299,7 +2374,8 @@ void WholebodyContactVelConR::CalcCoef(){
 	Prepare();
 
 	int idx = 0;
-	dynamic_cast<M3Link*>(links[idx++])->SetCoef(Ro.transpose());
+	//dynamic_cast<M3Link*>(links[idx++])->SetCoef(Ro.transpose());
+    dynamic_cast<M3Link*>(links[idx++])->SetCoef(Ro.transpose()*Iinv);
 
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
@@ -2312,7 +2388,7 @@ void WholebodyContactVelConR::CalcCoef(){
 void WholebodyNormalForceCon::CalcCoef(){
 	Prepare();
 
-	dynamic_cast<R3Link*>(links[0])->SetCoef(vec3_t(0.0, 0.0, 1.0));
+	dynamic_cast<R3Link*>(links[0])->SetCoef(nz);
 }
 
 void WholebodyFrictionForceCon::CalcCoef(){
@@ -2321,12 +2397,14 @@ void WholebodyFrictionForceCon::CalcCoef(){
 	// -mu*fn <= ft <= mu*fn
 	// -ft + mu*fn >= 0
 	//  ft + mu*fn >= 0
-
+    dynamic_cast<R3Link*>(links[0])->SetCoef(df);
+    /*
 	dynamic_cast<R3Link*>(links[0])->SetCoef(
 		vec3_t(
 			(dir == 0 ? (side == 0 ? -1.0 : 1.0) : 0.0),
 			(dir == 1 ? (side == 0 ? -1.0 : 1.0) : 0.0),
 			mu));
+            */
 }
 
 void WholebodyMomentCon::CalcCoef(){
@@ -2344,7 +2422,9 @@ void WholebodyMomentCon::CalcCoef(){
 	// -mx + (cop_max.y)*fz >= 0
 	//  mz - (cop_min.z)*fz >= 0
 	// -mz + (cop_max.z)*fz >= 0
-
+    dynamic_cast<R3Link*>(links[0])->SetCoef(df  );
+	dynamic_cast<R3Link*>(links[1])->SetCoef(deta);
+    /*
 	if(dir == 0){
 		dynamic_cast<R3Link*>(links[0])->SetCoef(vec3_t(0.0, 0.0, (side == 0 ? -cmin.x() : cmax.x())));
 		dynamic_cast<R3Link*>(links[1])->SetCoef(vec3_t(0.0, (side == 0 ? -1.0 : +1.0), 0.0));
@@ -2357,6 +2437,7 @@ void WholebodyMomentCon::CalcCoef(){
 		dynamic_cast<R3Link*>(links[0])->SetCoef(vec3_t(0.0, 0.0, (side == 0 ? -cmin.z() : cmax.z())));
 		dynamic_cast<R3Link*>(links[1])->SetCoef(vec3_t(0.0, 0.0, (side == 0 ? +1.0 : -1.0)));
 	}
+    */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2387,10 +2468,14 @@ void WholebodyCentroidPosConR::CalcDeviation(){
 	y = quat_error(q_rhs, q1);
 }
 
-void WholebodyCentroidVelConR::CalcDeviation(){
-	y = w1 - w_rhs;
+void WholebodyCentroidLCon::CalcDeviation(){
+	y = L1 - L_rhs;
 	//DSTR << "velconr: " << y << endl;
 }
+/*void WholebodyCentroidVelConR::CalcDeviation(){
+	y = w1 - w_rhs;
+	//DSTR << "velconr: " << y << endl;
+}*/
 
 void WholebodyDesPosConT::CalcDeviation(){
 	y = pe - desired;
@@ -2410,11 +2495,11 @@ void WholebodyDesVelConR::CalcDeviation(){
 	y = we - desired;
 	//DSTR << "desvelconr: " << iend << " " << y << endl;
 }
-
+/*
 void WholebodyLCon::CalcDeviation(){
 	y = obj->data.centroid.Labs - desired;
 }
-
+*/
 void WholebodyContactPosConT::CalcDeviation(){
 	y = qo.conjugate()*(pc + q0*(pi + qi*r) - po);
 }
@@ -2432,20 +2517,20 @@ void WholebodyContactVelConR::CalcDeviation(){
 }
 
 void WholebodyNormalForceCon::CalcDeviation(){
-	y[0] = fn;
+	y[0] = fz;
 	//DSTR << "fn: " << fn << endl;
-	if(fn > 0.0){
+	if(fz > 0.0){
 		y[0] = 0.0;
 		active = false;
 	}
 	else{
-		y[0] = fn;
+		y[0] = fz;
 		active = true;
 	}
 }
 
 void WholebodyFrictionForceCon::CalcDeviation(){
-	y[0] = (side == 0 ? mu*fn - ft : ft + mu*fn);
+	y[0] = df.dot(f);
 	active = y[0] < 0.0;
 	/*real_t e = (side == 0 ? mu*fn - ft : ft + mu*fn);
 	if(e > 0.0){
@@ -2465,15 +2550,7 @@ void WholebodyMomentCon::CalcDeviation(){
 	// -tx*m + (cop_max.y)*fn >= 0
 	//  tz*m - (cop_min.z)*fn >= 0
 	// -tz*m + (cop_max.z)*fn >= 0
-	if(dir == 0){
-		y[0] = (side == 0 ? (-m.y() - cmin.x()*fn) : ( m.y() + cmax.x()*fn));
-	}
-	if(dir == 1){
-		y[0] = (side == 0 ? ( m.x() - cmin.y()*fn) : (-m.x() + cmax.y()*fn));
-	}
-	if(dir == 2){
-		y[0] = (side == 0 ? ( m.z() - cmin.z()*fn) : (-m.z() + cmax.z()*fn));
-	}
+	y[0] = df.dot(f) + deta.dot(eta);
 	if(y[0] < 0.0){
 		active = true;
 	}

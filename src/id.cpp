@@ -24,6 +24,7 @@ const char* VarNames[] = {
 	"wholebody_vel_r",
 	"wholebody_acc_t",
 	"wholebody_acc_r",
+    "wholebody_momentum",
 	"wholebody_joint_pos",
 	"wholebody_joint_vel",
 	"wholebody_joint_acc",
