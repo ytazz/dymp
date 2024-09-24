@@ -59,6 +59,7 @@ set(DYMP_HEADERS
   include/canvas.h
   include/centroid.h
   include/constraint.h
+  include/dymp.h
   include/id.h
   include/link.h
   include/model.h
@@ -107,6 +108,7 @@ install(TARGETS dymp
   INCLUDES      DESTINATION include/dymp
   PUBLIC_HEADER DESTINATION include/dymp
   )
+install(FILES ${DYMP_HEADERS} DESTINATION include/dymp)
 
 install(EXPORT dympExport
   FILE         dympConfig.cmake

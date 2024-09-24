@@ -221,7 +221,7 @@ public:
 		std::pair<int,int> seg = this->GetSegment(t);
 		struct base_t::point_t& p0 = this->points[seg.first ];
 		struct base_t::point_t& p1 = this->points[seg.second];
-        if(type == Interpolate::LinearDiff)
+        if(this->type == Interpolate::LinearDiff)
              return interpolate_pos_linear_diff(t, p0.t, p0.pos, p1.t, p1.pos);
         else return interpolate_pos_cubic(t, p0.t, p0.pos, p0.vel, p1.t, p1.pos, p1.vel);
 	}
@@ -230,7 +230,7 @@ public:
 		std::pair<int,int> seg = this->GetSegment(t);
 		struct base_t::point_t& p0 = this->points[seg.first ];
 		struct base_t::point_t& p1 = this->points[seg.second];
-        if(type == Interpolate::LinearDiff)
+        if(this->type == Interpolate::LinearDiff)
              return interpolate_vel_linear_diff(p0.t, p0.pos, p1.t, p1.pos);
         else return interpolate_vel_cubic(t, p0.t, p0.pos, p0.vel, p1.t, p1.pos, p1.vel);
 	}

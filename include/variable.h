@@ -80,11 +80,11 @@ public:
 /**
 	2D vector variable
  */
-class V2Var : public VariableImpl<Vector2d>{
+class V2Var : public VariableImpl<vec2_t>{
 public:
 	virtual void Reset(){
-		val     = Vector2d(0.0, 0.0);
-		val_tmp = Vector2d(0.0, 0.0);
+		val     = vec2_t(0.0, 0.0);
+		val_tmp = vec2_t(0.0, 0.0);
 	}
 	virtual void Modify(double alpha){
 		val[0] = val_tmp[0] + (alpha*scale) * dx[0];
@@ -99,11 +99,11 @@ public:
 /**
 	3D vector variable
  */
-class V3Var : public VariableImpl<Vector3d>{
+class V3Var : public VariableImpl<vec3_t>{
 public:
 	virtual void Reset(){
-		val     = Vector3d(0.0, 0.0, 0.0);
-		val_tmp = Vector3d(0.0, 0.0, 0.0);
+		val     = vec3_t(0.0, 0.0, 0.0);
+		val_tmp = vec3_t(0.0, 0.0, 0.0);
 	}
 	virtual void Modify(double alpha){
 		val = val_tmp + (alpha*scale) * dx;
@@ -117,11 +117,11 @@ public:
 /**
 	quaternion variable
  */
-class QVar : public VariableImpl<Quaterniond>{
+class QVar : public VariableImpl<quat_t>{
 public:
 	virtual void Reset(){
-		val     = Quaterniond(0.0, 0.0, 0.0, 1.0);
-		val_tmp = Quaterniond(0.0, 0.0, 0.0, 1.0);
+		val     = quat_t(0.0, 0.0, 0.0, 1.0);
+		val_tmp = quat_t(0.0, 0.0, 0.0, 1.0);
 	}
 	virtual void Modify(double alpha){
 		double dx_norm = dx.norm();

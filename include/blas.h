@@ -144,13 +144,13 @@ public:
 std::ostream& operator<<(std::ostream& os, Vector& v);
 std::ostream& operator<<(std::ostream& os, Matrix& m);
 
-inline void cross3_mat(const Vector3d& r, Matrix3d& y){
+inline void cross3_mat(const Eigen::Vector3d& r, Eigen::Matrix3d& y){
 	y(0,0) =  0.0  ; y(0,1) = -r.z(); y(0,2) =  r.y();
 	y(1,0) =  r.z(); y(1,1) =  0.0  ; y(1,2) = -r.x();
 	y(2,0) = -r.y(); y(2,1) =  r.x(); y(2,2) =  0.0;
 }
 
-inline void  mat_copy (const Matrix3d& m1, Matrix&& y){
+inline void  mat_copy (const Eigen::Matrix3d& m1, Matrix&& y){
 	const double* col0 = &m1(0,0);
 	double*       col1 = y.vh;
 	for(int j = 0; j < 3; j++, col0 += 3, col1 += y.l){
@@ -161,7 +161,7 @@ inline void  mat_copy (const Matrix3d& m1, Matrix&& y){
 		}
 	}
 }
-inline void  mat_copy (const Matrix3d& m1, Matrix& y){
+inline void  mat_copy (const Eigen::Matrix3d& m1, Matrix& y){
 	mat_copy(m1, std::move(y));
 }
 
@@ -180,7 +180,7 @@ void  mat_copy (const Eigen::Matrix<T, R, C>& m1, Matrix&& y){
 	for(int j = 0; j < C; j++, col0 += R, col1 += y.l){
 		const real_t* v0 = col0;
 		double*       v1 = col1;
-		for(int i = 0; i < H; i++){
+		for(int i = 0; i < R; i++){
 			*v1++ = (double)*v0++;
 		}
 	}
