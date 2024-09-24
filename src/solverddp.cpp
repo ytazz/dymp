@@ -330,15 +330,14 @@ void Solver::ClearDDP(){
 void Solver::CalcTransitionDDP(){
 	timer3.CountUS();
 
-	vec3_t one(1.0, 1.0, 1.0);
-
-//#pragma omp parallel for if(param.parallelize)
+#pragma omp parallel for if(param.parallelize)
 	for(int k = 0; k < N; k++){
 		auto&& tr = transition[k];
 		
 		mat_clear(fx  [k]);
 		mat_clear(fu  [k]);
         vec_clear(fcor[k]);
+
 		for(auto&& subtr : tr->subtran){
 			if(!subtr->con->enabled)
 				continue;
@@ -357,7 +356,7 @@ void Solver::CalcTransitionDDP(){
 					continue;
 
 				int m = x0.x->var->nelem;
-                x0.link->RegisterCoef(fx[k].SubMatrix(subtr->x1->index, x0.x->index, n, m), -one);
+                x0.link->RegisterCoef(fx[k].SubMatrix(subtr->x1->index, x0.x->index, n, m), -one3);
 				
 				ix0++;
 			}
@@ -368,44 +367,14 @@ void Solver::CalcTransitionDDP(){
 					continue;
 
 				int m = u.u->var->nelem;
-                u.link->RegisterCoef(fu[k].SubMatrix(subtr->x1->index, u.u->index, n, m), -one);
+                u.link->RegisterCoef(fu[k].SubMatrix(subtr->x1->index, u.u->index, n, m), -one3);
 			}
             
             // set correction term
-			subtr->con->RegisterCorrection(fcor[k].SubVector(subtr->x1->index, n), one);
+			subtr->con->RegisterCorrection(fcor[k].SubVector(subtr->x1->index, n), one3);
 		}
 	}
 	status.timeTrans = timer3.CountUS();
-
-	//DSTR << " tf: " << tf << endl;
-	FILE* file;
-	int k = 5;
-	/*
-	file = fopen("fx.csv", "w");
-	for(int i = 0; i < fx[k].m; i++){
-		for(int j = 0; j < fx[k].n; j++){
-			fprintf(file, "%f, ", fx[k](i,j));
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-
-	file = fopen("fu.csv", "w");
-	for(int i = 0; i < fu[k].m; i++){
-		for(int j = 0; j < fu[k].n; j++){
-			fprintf(file, "%f, ", fu[k](i,j));
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-	
-	file = fopen("fcor.csv", "w");
-	for(int i = 0; i < fcor[k].n; i++){
-		fprintf(file, "%f\n", fcor[k](i));
-	}
-	fclose(file);
-	*/
-	
 }
 
 void Solver::CalcCostDDP(){
@@ -415,7 +384,7 @@ void Solver::CalcCostDDP(){
 
 	timer3.CountUS();
 	// calculate state cost
-//#pragma omp parallel for if(param.parallelize)
+#pragma omp parallel for if(param.parallelize)
 	for(int k = 0; k <= N; k++){
 		if(!cost[k])
 			continue;
@@ -430,19 +399,32 @@ void Solver::CalcCostDDP(){
 			
 			int n  = subcost->con->nelem;
 			subcost->con->RegisterDeviation(cost[k]->y.SubVector(subcost->index, n));
+        }
 
-			// sum up L
-			if( subcost->con->type == Constraint::Type::Equality ||
-				subcost->con->type == Constraint::Type::InequalityPenalty ){
-				for(int i = 0; i < n; i++){
-					L[k] += 0.5 * square(subcost->con->weight[i]*cost[k]->y(subcost->index + i));
-				}
-			}
-			if( subcost->con->type == Constraint::Type::InequalityBarrier ){
-				// assume n = 1
-				L[k] += -square(subcost->con->weight[0])*log(std::min(std::max(subcost->con->barrier_margin, cost[k]->y(subcost->index)), 1.0));
-			}
-
+        // use custom quadratic weight
+		if(cost[k]->useQuadWeight){
+			L[k] = cost[k]->Vconst + vec_dot(cost[k]->Vy, cost[k]->y) + (1.0/2.0)*quadform(cost[k]->Vyy, cost[k]->y, cost[k]->y);
+		}
+		// otherwise, sum up cost using the weight of each constraint
+		else{
+			for(auto&& subcost : cost[k]->subcost){     
+				if(subcost->index == -1)
+					continue;
+				if(!subcost->con->active)
+					continue;
+	
+				int n  = subcost->con->nelem;
+			    if( subcost->con->type == Constraint::Type::Equality ||
+				    subcost->con->type == Constraint::Type::InequalityPenalty ){
+				    for(int i = 0; i < n; i++){
+					    L[k] += 0.5 * square(subcost->con->weight[i]*cost[k]->y(subcost->index + i));
+				    }
+			    }
+			    if( subcost->con->type == Constraint::Type::InequalityBarrier ){
+				    // assume n = 1
+				    L[k] += -square(subcost->con->weight[0])*log(std::min(std::max(subcost->con->barrier_margin, cost[k]->y(subcost->index)), 1.0));
+			    }
+            }
 		}
 	}
 
@@ -463,7 +445,7 @@ void Solver::CalcCostGradientDDP(){
 
 	timer3.CountUS();
 	// calculate state cost
-//#pragma omp parallel for if(param.parallelize)
+#pragma omp parallel for if(param.parallelize)
 	for(int k = 0; k <= N; k++){
 		if(!cost[k])
 			continue;
@@ -525,57 +507,75 @@ void Solver::CalcCostGradientDDP(){
 
 		timer4.CountUS();
 		
-		for(auto&& subcost : cost[k]->subcost){     
-			if(subcost->index == -1)
-				continue;
-			if(!subcost->con->active)
-				continue;
-			
-			int n  = subcost->con->nelem;
-			int nx = subcost->xend - subcost->xbegin;
+		//
+		if(cost[k]->useQuadWeight){
+			// current implementation assumes custom weight is used for terminal cost only
+			// so input cost is ignored
+			cost[k]->Axtr_Vyy.Allocate(dx[k].n, cost[k]->dim);
+			cost[k]->Vy_plus_Vyy_y.Allocate(cost[k]->dim);
 
-			if(nx > 0){
-				mattr_vec_mul(
-					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					cost[k]->b .SubVector(subcost->index, n),
-					Lx[k].SubVector(subcost->xbegin, nx), 1.0, 1.0);
-				mattr_mat_mul(
-					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					Lxx[k].SubMatrix(subcost->xbegin, subcost->xbegin, nx, nx), 1.0, 1.0);
-			}
+			vec_copy(cost[k]->Vy, cost[k]->Vy_plus_Vyy_y);
+			mat_vec_mul(cost[k]->Vyy, cost[k]->y, cost[k]->Vy_plus_Vyy_y, 1.0, 1.0);
+			mattr_vec_mul(cost[k]->Ax, cost[k]->Vy_plus_Vyy_y, Lx[k], 1.0, 0.0);
+
+			mattr_mat_mul(cost[k]->Ax, cost[k]->Vyy, cost[k]->Axtr_Vyy, 1.0, 0.0);
+			mat_mat_mul  (cost[k]->Axtr_Vyy, cost[k]->Ax, Lxx[k], 1.0, 0.0);
+		}
+		else{
+            for(auto&& subcost : cost[k]->subcost){     
+			    if(subcost->index == -1)
+				    continue;
+			    if(!subcost->con->active)
+				    continue;
 			
+			    int n  = subcost->con->nelem;
+			    int nx = subcost->xend - subcost->xbegin;
+
+			    if(nx > 0){
+				    mattr_vec_mul(
+					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					    cost[k]->b .SubVector(subcost->index, n),
+					    Lx[k].SubVector(subcost->xbegin, nx), 1.0, 1.0);
+				    mattr_mat_mul(
+					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					    Lxx[k].SubMatrix(subcost->xbegin, subcost->xbegin, nx, nx), 1.0, 1.0);
+			    }
+			
+			    if(k < N){
+				    int nu = subcost->uend - subcost->ubegin;
+				    if(nu > 0){	
+					    mattr_vec_mul(
+						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						    cost[k]->b .SubVector(subcost->index, n),
+						    Lu[k].SubVector(subcost->ubegin, nu), 1.0, 1.0);
+					    mattr_mat_mul(
+						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						    Luu[k].SubMatrix(subcost->ubegin, subcost->ubegin, nu, nu), 1.0, 1.0);
+					    if(nx > 0){
+						    mattr_mat_mul(
+							    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+							    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx),
+							    Lux[k].SubMatrix(subcost->ubegin, subcost->xbegin, nu, nx), 1.0, 1.0);
+					    }
+				    }
+			    }
+            }
+		    /*
+			// calculate using whole dense matrix multiplication
+			// this is expensive considering Ax and Au are highly sparse
+			mattr_vec_mul(cost[k]->Ax, cost[k]->b , Lx[k], 1.0, 0.0);
+			mattr_mat_mul(cost[k]->Ax, cost[k]->Ax, Lxx[k], 1.0, 0.0);
+		
 			if(k < N){
-				int nu = subcost->uend - subcost->ubegin;
-				if(nu > 0){	
-					mattr_vec_mul(
-						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						cost[k]->b .SubVector(subcost->index, n),
-						Lu[k].SubVector(subcost->ubegin, nu), 1.0, 1.0);
-					mattr_mat_mul(
-						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						Luu[k].SubMatrix(subcost->ubegin, subcost->ubegin, nu, nu), 1.0, 1.0);
-					if(nx > 0){
-						mattr_mat_mul(
-							cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-							cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx),
-							Lux[k].SubMatrix(subcost->ubegin, subcost->xbegin, nu, nx), 1.0, 1.0);
-					}
-				}
+				mattr_vec_mul(cost[k]->Au, cost[k]->b , Lu [k], 1.0, 0.0);
+				mattr_mat_mul(cost[k]->Au, cost[k]->Au, Luu[k], 1.0, 0.0);
+				mattr_mat_mul(cost[k]->Au, cost[k]->Ax, Lux[k], 1.0, 0.0);
 			}
+			*/
 		}
 		
-		/*
-		mattr_vec_mul(cost[k]->Ax, cost[k]->b , Lx[k], 1.0, 0.0);
-		mattr_mat_mul(cost[k]->Ax, cost[k]->Ax, Lxx[k], 1.0, 0.0);
-		
-		if(k < N){
-			mattr_vec_mul(cost[k]->Au, cost[k]->b , Lu [k], 1.0, 0.0);
-			mattr_mat_mul(cost[k]->Au, cost[k]->Au, Luu[k], 1.0, 0.0);
-			mattr_mat_mul(cost[k]->Au, cost[k]->Ax, Lux[k], 1.0, 0.0);
-		}
-		*/
 		int T2 = timer4.CountUS();
 
 		//DSTR << "costgrad: T1: " << T1 << " T2: " << T2 << endl;
@@ -609,28 +609,6 @@ void Solver::CalcCostGradientDDP(){
         }
 	}
 	status.timeCostGrad = timer3.CountUS();
-
-	//DSTR << " tLgrad: " << tLgrad << endl;
-	/*
-	FILE* file = fopen("Luu.csv", "w");
-	int k = 5;
-	for(int i = 0; i < Luu[k].m; i++){
-		for(int j = 0; j < Luu[k].n; j++){
-			fprintf(file, "%f, ", Luu[k](i,j));
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-
-	file = fopen("Lux.csv", "w");
-	for(int i = 0; i < Lux[k].m; i++){
-		for(int j = 0; j < Lux[k].n; j++){
-			fprintf(file, "%f, ", Lux[k](i,j));
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-	*/
 }
 
 void PrintSparsity(int k, const Matrix& m){
@@ -664,11 +642,23 @@ void Solver::BackwardDDP(){
 		timer4.CountUS();
 		mat_vec_mul(Vxx[k+1], fcor[k], Vxx_fcor[k], 1.0, 0.0);
 
-		if(state[k]->dim != 0)
-			mat_mat_mul(Vxx[k+1], fx  [k], Vxx_fx  [k], 1.0, 0.0);
+		if(state[k]->dim != 0){
+			if(ddpCallback){
+				ddpCallback->mat_fx_mul(Vxx[k+1], fx[k], Vxx_fx[k], false);
+			}
+			else{
+				mat_mat_mul(Vxx[k+1], fx[k], Vxx_fx[k], 1.0, 0.0);
+			}
+        }
 
-		if(input[k]->dim != 0)
-			mat_mat_mul(Vxx[k+1], fu  [k], Vxx_fu  [k], 1.0, 0.0);
+		if(input[k]->dim != 0){
+            if(ddpCallback){
+				ddpCallback->mat_fu_mul(Vxx[k+1], fu[k], Vxx_fu[k], false);
+			}
+			else{
+				mat_mat_mul(Vxx[k+1], fu[k], Vxx_fu[k], 1.0, 0.0);
+			}
+        }
 
         vec_copy(Vx[k+1]    , Vx_plus_Vxx_fcor[k]);
         vec_add (Vxx_fcor[k], Vx_plus_Vxx_fcor[k]);
@@ -677,17 +667,32 @@ void Solver::BackwardDDP(){
         
         if(state[k]->dim != 0){
 			vec_copy(Lx[k], Qx[k]);
-			mattr_vec_mul(fx[k], Vx_plus_Vxx_fcor[k], Qx[k], 1.0, 1.0);
+			if(ddpCallback){
+				ddpCallback->fxtr_vec_mul(fx[k], Vx_plus_Vxx_fcor[k], Qx[k], true);
+			}
+			else{
+				mattr_vec_mul(fx[k], Vx_plus_Vxx_fcor[k], Qx[k], 1.0, 1.0);
+			}
 		}
 
         if(input[k]->dim != 0){
 			vec_copy(Lu[k], Qu[k]);
-			mattr_vec_mul(fu[k], Vx_plus_Vxx_fcor[k], Qu[k], 1.0, 1.0);
+			if(ddpCallback){
+				ddpCallback->futr_vec_mul(fu[k], Vx_plus_Vxx_fcor[k], Qu[k], true);
+			}
+			else{
+				mattr_vec_mul(fu[k], Vx_plus_Vxx_fcor[k], Qu[k], 1.0, 1.0);
+			}
 		}
 
         if(state[k]->dim != 0){
 			mat_copy(Lxx[k], Qxx[k]);
-	        mattr_mat_mul(fx[k], Vxx_fx[k], Qxx[k], 1.0, 1.0);
+	        if(ddpCallback){
+				ddpCallback->fxtr_mat_mul(fx[k], Vxx_fx[k], Qxx[k], true);
+			}
+			else{
+				mattr_mat_mul(fx[k], Vxx_fx[k], Qxx[k], 1.0, 1.0);
+			}
 			
 			for(int i = 0; i < Qxx[k].m; i++)
 				Qxx[k](i,i) += param.stateRegularization;
@@ -696,12 +701,22 @@ void Solver::BackwardDDP(){
 
         if(input[k]->dim != 0){
 			mat_copy(Luu[k], Quu[k]);
-			mattr_mat_mul(fu[k], Vxx_fu[k], Quu[k], 1.0, 1.0);
+			if(ddpCallback){
+				ddpCallback->futr_mat_mul(fu[k], Vxx_fu[k], Quu[k], true);
+			}
+			else{
+				mattr_mat_mul(fu[k], Vxx_fu[k], Quu[k], 1.0, 1.0);
+			}
 		}
 
         if(input[k]->dim != 0 && state[k]->dim != 0){
 			mat_copy(Lux[k], Qux[k]);
-	        mattr_mat_mul(fu[k], Vxx_fx[k], Qux[k], 1.0, 1.0);
+	        if(ddpCallback){
+				ddpCallback->futr_mat_mul(fu[k], Vxx_fx[k], Qux[k], true);
+			}
+			else{
+			    mattr_mat_mul(fu[k], Vxx_fx[k], Qux[k], 1.0, 1.0);
+			}
 		}
 
 		//Q  [k] = L  [k] + V[k+1] + Vx[k+1]*f_cor[k] + (1.0/2.0)*((Vxx[k+1]*f_cor[k])*f_cor[k]);
@@ -757,25 +772,6 @@ void Solver::BackwardDDP(){
 	    for(int i = 1; i < Vxx[k].m; i++) for(int j = 0; j < i; j++)
 		    Vxx[k](i,j) = Vxx[k](j,i);
 
-		//int tback = timer2.CountUS();
-		//DSTR << "back " << k << " : " << " nx: " << state[k]->dim << " nu: " << input[k]->dim
-		//	 << " T1: " << tback1
-		//	 << " T2: " << tback2
-		//	 << " T3: " << tback3
-		//	 << endl;
-		//DSTR << "Vk: " << k << " " << V[k] << endl;
-		/*
-		char filename[256];
-		sprintf(filename, "Quu%d.csv", k);
-		FILE* file = fopen(filename, "w");
-		for(int i = 0; i < Quu[k].m; i++){
-			for(int j = 0; j < Quu[k].n; j++){
-				fprintf(file, "%f, ", Quu[k](i,j));
-			}
-			fprintf(file, "\n");
-		}
-		fclose(file);
-		*/
 	}
 }
 

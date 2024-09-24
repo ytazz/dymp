@@ -42,9 +42,10 @@ struct Matrix{
 	void Delete  ();
 	void Allocate(int _m, int _n);
 	void Resize  (int _m, int _n);
-
-	double& operator()(int i, int j)     { return vh[l*j+i]; }
-	double& operator()(int i, int j)const{ return vh[l*j+i]; }
+    void Transpose();  ///< transpose by changing layout
+	
+	double& operator()(int i, int j)     { assert(0 <= i && i < m && 0 <= j && j < n); return vh[l*j+i]; }
+	double& operator()(int i, int j)const{ assert(0 <= i && i < m && 0 <= j && j < n); return vh[l*j+i]; }
 
 	Matrix SubMatrix(int row, int col, int _m, int _n);
 	Vector Col(int col);
@@ -52,93 +53,6 @@ struct Matrix{
 	 Matrix();
 	 Matrix(int _m, int _n);
 	~Matrix();
-};
-
-struct SparseVector : std::map<int, Vector>{
-	int n;
-	int dim;
-	
-	void          Resize   (int _n, int _dim);
-	const Vector* Item     (int i) const;
-	Vector        SubVector(int i);
-	void          Clear    (int i);
-	void          Clear    ();
-};
-
-struct SparseMatrix{
-	struct PrintCallback{
-		virtual bool Order(int lhs, int rhs) = 0;
-		virtual int  Label(int i, int j, bool nonzero) = 0;
-	};
-
-	int           m;
-	int           n;
-	int           dim;
-
-	struct Row : std::map<int, Matrix>{
-		
-	};
-	std::vector<Row>     rows;   //< number of non-zeros of each row
-	
-	void           Resize   (int _m, int _n, int _dim);
-	const Matrix*  Item     (int i, int j) const;
-	Matrix         SubMatrix(int i, int j);
-	Matrix         SubMatrix(int i, int j) const;
-	SparseMatrix   RowMatrix(int i) const;
-	SparseMatrix   ColMatrix(int j) const;
-	void           Clear    ();
-	void           RowClear (int i);
-	void           ColClear (int j);
-
-	void  PrintSparsity(std::ostream& os, PrintCallback* callback = 0);
-
-	SparseMatrix();
-};
-
-class LinearSolver{
-public:
-	virtual void Init  (SparseMatrix& A) = 0;
-	virtual void Finish() = 0;
-	virtual void Solve (SparseMatrix& A, SparseVector& b, SparseVector& x) = 0;
-
-};
-
-class LinearSolverCustom : public LinearSolver{
-public:
-	bool mindeg;
-
-	std::vector<int> order;
-	std::set<int> queue;
-	std::vector<Matrix>        Aii;
-	std::vector<Matrix>        Aii_inv;
-	std::vector<SparseMatrix>  Arow;
-	std::vector<Vector>        bi;
-	std::vector<Vector>        Aii_inv_bi;
-	std::vector<SparseMatrix>  Aii_inv_Arow;
-
-public:
-	virtual void Init  (SparseMatrix& A);
-	virtual void Finish();
-	virtual void Solve (SparseMatrix& A, SparseVector& b, SparseVector& x);
-
-	LinearSolverCustom();
-};
-
-class LinearSolverCholmod : public LinearSolver{
-public:
-	int nrow;
-	int ncol;
-	int nblock;
-	int nzmax;
-
-	void* work;
-
-public:
-	virtual void Init  (SparseMatrix& A);
-	virtual void Finish();
-	virtual void Solve (SparseMatrix& A, SparseVector& b, SparseVector& x);
-
-	LinearSolverCholmod();
 };
 
 std::ostream& operator<<(std::ostream& os, Vector& v);
@@ -178,7 +92,7 @@ void  mat_copy (const Eigen::Matrix<T, R, C>& m1, Matrix&& y){
 	const T* col0 = &m1(0,0);
 	double*  col1 = y .vh;
 	for(int j = 0; j < C; j++, col0 += R, col1 += y.l){
-		const real_t* v0 = col0;
+		const double* v0 = col0;
 		double*       v1 = col1;
 		for(int i = 0; i < R; i++){
 			*v1++ = (double)*v0++;
@@ -186,105 +100,125 @@ void  mat_copy (const Eigen::Matrix<T, R, C>& m1, Matrix&& y){
 	}
 }
 
-inline void vec_clear(Vector&& y){
+inline void vec_clear(Vector&& y, double val = 0.0){
 	double* vh = y.vh;
 	for(int i = 0; i < y.n; i++)
-		*vh++ = 0.0;
+		*vh++ = val;
 }
-inline void vec_clear(Vector& y){
-	vec_clear((Vector&&)std::move(y));
+inline void vec_clear(Vector& y, double val = 0.0){
+	vec_clear((Vector&&)std::move(y), val);
 }
+inline double vec_norm(const Vector& v){
+	double vn = 0.0;
+	for(int j = 0; j < v.n; j++)
+		vn += (v(j)*v(j));
 
-inline void vec_clear(SparseVector& y){
-	for(SparseVector::iterator it = y.begin(); it != y.end(); it++)
-		vec_clear(it->second);
+	return sqrt(vn);
 }
-
-inline void mat_clear(Matrix&& y){
+inline void mat_clear(Matrix&& y, double val = 0.0){
 	double* vh0 = y.vh;
 	for(int j = 0; j < y.n; j++, vh0 += y.l){
 		double* vh = vh0;
 		for(int i = 0; i < y.m; i++, vh++){
-			*vh = 0.0;
+			*vh = val;
 		}
 	}
 }
-inline void mat_clear(Matrix& y){
-	mat_clear((Matrix&&)std::move(y));
-}
-
-inline void mat_clear(SparseMatrix& y){
-	for(int i = 0; i < y.m; i++){
-		for(SparseMatrix::Row::iterator it = y.rows[i].begin(); it != y.rows[i].end(); it++)
-			mat_clear(it->second);
-	}
+inline void mat_clear(Matrix& y, double val = 0.0){
+	mat_clear((Matrix&&)std::move(y), val);
 }
 
 inline void vec_copy(const Vector& v1, Vector&& y){
+	assert(y.n == v1.n);
+	memcpy(y.vh, v1.vh, sizeof(double)*y.n);
+}
+inline void vec_copy(const Vector& v1, Vector&& y, double k){
+	assert(y.n == v1.n);
 	double* vh0 = v1.vh;
 	double* vh1 = y .vh;
 	for(int i = 0; i < v1.n; i++)
-		*vh1++ = *vh0++;
+		*vh1++ = k*(*vh0++);
 }
 inline void vec_copy(const Vector& v1, Vector& y){
 	vec_copy(v1, (Vector&&)std::move(y));
 }
-
-inline void vec_copy (const SparseVector& v1, SparseVector& y){
-	for(SparseVector::const_iterator it = v1.begin(); it != v1.end(); it++){
-		int           j  = it->first;
-		const Vector& vj = it->second;
-		Vector yj = y.SubVector(j);
-		vec_copy(vj, yj);
-	}
+inline void vec_copy(const Vector& v1, Vector& y, double k){
+	vec_copy(v1, (Vector&&)std::move(y), k);
 }
 
 inline void mat_copy(const Matrix& m1, Matrix&& y){
+	assert(y.m == m1.m && y.n == m1.n);
+	double* col0 = m1.vh;
+	double* col1 = y .vh;
+	for(int j = 0; j < m1.n; j++, col0 += m1.l, col1 += y.l){
+		double* v0 = col0;
+		double* v1 = col1;
+		memcpy(v1, v0, sizeof(double)*m1.m);
+		//for(int i = 0; i < m1.m; i++){
+		//	*v1++ = *v0++;
+		//}
+	}
+}
+inline void mat_copy(const Matrix& m1, Matrix&& y, double k){
+	assert(y.m == m1.m && y.n == m1.n);
 	double* col0 = m1.vh;
 	double* col1 = y .vh;
 	for(int j = 0; j < m1.n; j++, col0 += m1.l, col1 += y.l){
 		double* v0 = col0;
 		double* v1 = col1;
 		for(int i = 0; i < m1.m; i++){
-			*v1++ = *v0++;
+			*v1++ = k*(*v0++);
 		}
 	}
 }
+inline void mattr_copy(const Matrix& m1, Matrix&& y){
+	assert(y.m == m1.n && y.n == m1.m);
+	double* col0 = m1.vh;
+	double* row1 = y .vh;
+	for(int j = 0; j < m1.n; j++, col0 += m1.l, row1++){
+		double* v0 = col0;
+		double* v1 = row1;
+		for(int i = 0; i < m1.m; i++){
+			*v1 = *v0++;
+			v1 += y.l;
+		}
+	}
+}
+
 inline void mat_copy(const Matrix& m1, Matrix& y){
 	mat_copy(m1, (Matrix&&)std::move(y));
 }
-
-inline void mat_copy (const SparseMatrix& m1, SparseMatrix& y){
-	for(int i = 0; i < m1.m; i++){
-		for(SparseMatrix::Row::const_iterator it = m1.rows[i].begin(); it != m1.rows[i].end(); it++){
-			int           j   = it->first ;
-			const Matrix& mij = it->second;
-			Matrix yij = y.SubMatrix(i, j);
-			mat_copy(mij, yij);
-		}
-	}
+inline void mat_copy(const Matrix& m1, Matrix& y, double k){
+	mat_copy(m1, (Matrix&&)std::move(y), k);
+}
+inline void mattr_copy(const Matrix& m1, Matrix& y){
+	mattr_copy(m1, (Matrix&&)std::move(y));
 }
 
 inline void vec_add(const Vector& v1, Vector&& y){
+	assert(y.n == v1.n);
 	double* vh0 = v1.vh;
 	double* vh1 = y .vh;
 	for(int i = 0; i < v1.n; i++)
 		*vh1++ += *vh0++;
 }
+inline void vec_add(const Vector& v1, Vector&& y, double k){
+	assert(y.n == v1.n);
+	double* vh0 = v1.vh;
+	double* vh1 = y .vh;
+	for(int i = 0; i < v1.n; i++)
+		*vh1++ += k*(*vh0++);
+}
 inline void vec_add(const Vector& v1, Vector& y){
 	vec_add(v1, (Vector&&)std::move(y));
 }
-
-inline void vec_add(const SparseVector& v1, SparseVector& y){
-	for(SparseVector::const_iterator it = v1.begin(); it != v1.end(); it++){
-		int           j  = it->first;
-		const Vector& vj = it->second;
-		Vector yj = y.SubVector(j);
-		vec_add(vj, yj);
-	}
+inline void vec_add(const Vector& v1, Vector& y, double k){
+	vec_add(v1, (Vector&&)std::move(y), k);
 }
 
+// y += m1
 inline void mat_add(const Matrix& m1, Matrix&& y){
+	assert(y.m == m1.m && y.n == m1.n);
 	double* col0 = m1.vh;
 	double* col1 = y .vh;
 	for(int j = 0; j < m1.n; j++, col0 += m1.l, col1 += y.l){
@@ -332,17 +266,6 @@ inline void mattr_add(const Matrix& m1, Matrix& y){
 	mattr_add(m1, (Matrix&&)std::move(y));
 }
 
-inline void mat_add(const SparseMatrix& m1, SparseMatrix& y){
-	for(int i = 0; i < m1.m; i++){
-		for(SparseMatrix::Row::const_iterator it = m1.rows[i].begin(); it != m1.rows[i].end(); it++){
-			int           j   = it->first ;
-			const Matrix& mij = it->second;
-			Matrix yij = y.SubMatrix(i, j);
-			mat_add(mij, yij);
-		}
-	}
-}
-
 inline double mat_abs(const Matrix& m){
 	// assumes m.m == m.l
 	return cblas_dasum(m.m*m.n, m.vh, 1);
@@ -350,6 +273,15 @@ inline double mat_abs(const Matrix& m){
 
 inline double vec_dot(const Vector& v1, const Vector& v2){
 	return cblas_ddot(v1.n, v1.vh, 1, v2.vh, 1);
+}
+
+inline double quadform(const Matrix& m, const Vector& v1, const Vector& v2){
+	assert(v1.n == m.m && v2.n == m.n);
+	double y = 0.0;
+	for(int i = 0; i < v1.n; i++)for(int j = 0; j < v2.n; j++)
+		y += m(i,j)*v1(i)*v2(j);
+
+	return y;
 }
 
 inline void mat_vec_mul(const Matrix& m1, const Vector& v, Vector&& y, double alpha, double beta){
@@ -369,16 +301,6 @@ inline void mat_vec_mul(const Matrix& m1, const Vector& v, Vector& y, double alp
 	mat_vec_mul(m1, v, (Vector&&)std::move(y), alpha, beta);
 }
 
-inline void mat_vec_mul(const SparseMatrix& m1, const SparseVector& v, Vector& y, double alpha, double beta){
-	for(SparseMatrix::Row::const_iterator it = m1.rows[0].begin(); it != m1.rows[0].end(); it++){
-		int           j   = it->first ;
-		const Matrix& m1j = it->second;
-		const Vector* vj  = v.Item(j);
-		if(vj)
-			mat_vec_mul(m1j, *vj, y, alpha, (it == m1.rows[0].begin() ? beta : 1.0));
-	}
-}
-
 inline void mattr_vec_mul(const Matrix& m1, const Vector& v, Vector&& y, double alpha, double beta){
 	Vector tmp;
 	if(v.vh == y.vh){
@@ -394,15 +316,6 @@ inline void mattr_vec_mul(const Matrix& m1, const Vector& v, Vector&& y, double 
 }
 inline void mattr_vec_mul(const Matrix& m1, const Vector& v, Vector& y, double alpha, double beta){
 	mattr_vec_mul(m1, v, (Vector&&)std::move(y), alpha, beta);
-}
-
-inline void mattr_vec_mul(const SparseMatrix& m1, const Vector& v, SparseVector& y, double alpha, double beta){
-	for(SparseMatrix::Row::const_iterator it = m1.rows[0].begin(); it != m1.rows[0].end(); it++){
-		int           j  = it->first ;
-		const Matrix& mj = it->second;
-		Vector yj = y.SubVector(j);
-		mattr_vec_mul(mj, v, yj, alpha, beta);
-	}
 }
 
 inline void symmat_vec_mul(const Matrix& m1, const Vector& v, Vector& y, double alpha, double beta){
@@ -426,14 +339,6 @@ inline void mat_mat_mul(const Matrix& m1, const Matrix& m2, Matrix& y, double al
 	mat_mat_mul(m1, m2, (Matrix&&)std::move(y), alpha, beta);
 }
 
-//void mat_mat_mul(const SparseMatrix& m1, const Matrix& m2, SparseMatrix& y, double alpha, double beta){
-//	for(SparseMatrix::Row::const_iterator it = m1.begin(); it != m1.end(); it++){
-//		int           i  = it->first.first;
-//		const Matrix& mi = it->second;
-//		mat_mat_mul(mi, m2, y.SubMatrix(i, 0), alpha, beta);
-//	}
-//}
-
 inline void mattr_mat_mul(const Matrix& m1, const Matrix& m2, Matrix&& y, double alpha, double beta){
 	Matrix tmp;
 	if(m1.vh == y.vh || m2.vh == y.vh){
@@ -451,25 +356,6 @@ inline void mattr_mat_mul(const Matrix& m1, const Matrix& m2, Matrix& y, double 
 	mattr_mat_mul(m1, m2, (Matrix&&)std::move(y), alpha, beta);
 }
 
-inline void mattr_mat_mul (const Matrix& m1, const SparseMatrix& m2, SparseMatrix& y, double alpha, double beta){
-	for(SparseMatrix::Row::const_iterator it = m2.rows[0].begin(); it != m2.rows[0].end(); it++){
-		int           j  = it->first ;
-		const Matrix& mj = it->second;
-		mattr_mat_mul(m1, mj, y.SubMatrix(0, j), alpha, beta);
-	}
-}
-
-inline void mattr_mat_mul (const SparseMatrix& m1, const SparseMatrix& m2, SparseMatrix& y, double alpha, double beta){
-	for(SparseMatrix::Row::const_iterator it1 = m1.rows[0].begin(); it1 != m1.rows[0].end(); it1++)
-	for(SparseMatrix::Row::const_iterator it2 = m2.rows[0].begin(); it2 != m2.rows[0].end(); it2++){
-		int           i  = it1->first ;
-		int           j  = it2->first ;
-		const Matrix& mi = it1->second;
-		const Matrix& mj = it2->second;
-		mattr_mat_mul(mi, mj, y.SubMatrix(i, j), alpha, beta);
-	}
-}
-
 inline void mat_mattr_mul(const Matrix& m1, const Matrix& m2, Matrix& y, double alpha, double beta){
 	cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, m1.m, m2.m, m1.n, alpha, m1.vh, m1.l, m2.vh, m2.l, beta, y.vh, y.l);
 }
@@ -481,19 +367,13 @@ inline void symmat_mat_mul(const Matrix& m1, const Matrix& m2, Matrix& y, double
 	symmat_mat_mul(m1, m2, (Matrix&&)std::move(y), alpha, beta);
 }
 
-inline void symmat_mat_mul(const Matrix& m1, const SparseMatrix& m2, SparseMatrix& y, double alpha, double beta){
-	for(SparseMatrix::Row::const_iterator it = m2.rows[0].begin(); it != m2.rows[0].end(); it++){
-		int           j  = it->first ;
-		const Matrix& mj = it->second;
-		symmat_mat_mul(m1, mj, y.SubMatrix(0, j), alpha, beta);
-	}
-}
-
 inline void  mat_eye(Matrix& m){
 	for(int j = 0; j < m.n; j++)for(int i = 0; i < m.m; i++)
 		m(i,j) = (i == j ? 1.0f : 0.0f);
 }
-
+inline void mat_identity(Matrix& m){
+	mat_eye(m);
+}
 inline void  mat_diag(const Vector& v, Matrix& m){
 	m.Allocate(v.n, v.n);
 	for(int j = 0; j < m.n; j++)for(int i = 0; i < m.m; i++)
