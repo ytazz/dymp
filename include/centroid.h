@@ -100,6 +100,7 @@ struct CentroidData{
 */
 class CentroidKey : public Keypoint {
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	Centroid*     cen;
 	CentroidKey*  endNext;
 
@@ -129,6 +130,7 @@ public:
 	FixConS*                   con_des_duration;
 
 	struct End{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		CentroidKey*  key;
 		
 		V3Var* var_pos_t;     //< end effector position (in global coordinate)
@@ -233,6 +235,7 @@ public:
 
 class Centroid : public Model{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	struct ContactState{
 		enum{
 			Free,
@@ -255,6 +258,7 @@ public:
 		};
 	};
 	struct Param {
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		real_t	m;  //< mass
 		mat3_t  I;  //< inertia
 		mat3_t  Iinv;
@@ -303,6 +307,7 @@ public:
 	};
 
    	struct End{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		vec3_t  basePos;
 		vec3_t  posMin;
 		vec3_t  posMax;
@@ -323,8 +328,11 @@ public:
 	};
 
 	struct Waypoint {
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		struct End{
+			EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 			struct Value{
+				EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 				vec3_t  pos_t;  //< specified in local coordinate
 				vec3_t  pos_r;
 				vec3_t  vel_t;
@@ -332,9 +340,10 @@ public:
 				int     iface;
 
 				Value();
-				Value(vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w, int _iface);
+				Value(const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w, int _iface);
 			};
 			struct Weight{
+				EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 				vec3_t  pos_t ;
 				vec3_t  pos_r ;
 				vec3_t  vel_t ;
@@ -344,7 +353,7 @@ public:
 				vec3_t  moment;
 
 				Weight();
-				Weight(vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w, real_t _l, vec2_t _r, vec3_t _eta);
+				Weight(const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w, real_t _l, const vec2_t& _r, const vec3_t& _eta);
 			};
 
 			Value   value;
@@ -354,6 +363,7 @@ public:
 		};
 
 		struct Value{
+			EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 			real_t  time;
 			real_t  duration;
 			vec3_t  pos_t;
@@ -362,9 +372,10 @@ public:
 			vec3_t  vel_r;
 
 			Value();
-			Value(real_t _t, real_t _tau, vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w);
+			Value(real_t _t, real_t _tau, const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w);
 		};
 		struct Weight{
+			EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 			real_t  time;
 			real_t  duration;
 			vec3_t  pos_t;
@@ -374,7 +385,7 @@ public:
 			vec3_t  L;
 
 			Weight();
-			Weight(real_t _t, real_t _tau, vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _L);//_w);
+			Weight(real_t _t, real_t _tau, const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _L);//_w);
 		};
 
 		Value   value;
@@ -386,7 +397,8 @@ public:
 	};
 	
     struct Face{
-        vec3_t          normal;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+		vec3_t          normal;
 		std::vector<vec3_t>  vertices;
         
         Face();
@@ -441,6 +453,7 @@ public:
 };
 
 struct CentroidCon : Constraint {
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey*  obj[2];
 	
 	void Prepare();
@@ -449,12 +462,14 @@ struct CentroidCon : Constraint {
 };
 
 struct CentroidComCon : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 
 	CentroidComCon(Solver* solver, int _dim, int _tag, string _name, CentroidKey* _obj, real_t _scale);
 };
 
 struct CentroidPosConT : CentroidComCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 	
 	virtual void  CalcCoef();
@@ -464,6 +479,7 @@ struct CentroidPosConT : CentroidComCon{
 };
 
 struct CentroidVelConT : CentroidComCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 
 	virtual void  CalcCoef();
@@ -473,6 +489,7 @@ struct CentroidVelConT : CentroidComCon{
 };
 
 struct CentroidPosConR : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 
 	virtual void  CalcCoef();
@@ -482,6 +499,7 @@ struct CentroidPosConR : CentroidCon{
 };
 /*
 struct CentroidVelConR : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 
 	virtual void  CalcCoef();
@@ -491,6 +509,7 @@ struct CentroidVelConR : CentroidCon{
 };
 */
 struct CentroidLCon : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	void Prepare();
 
 	virtual void  CalcCoef();
@@ -500,6 +519,7 @@ struct CentroidLCon : CentroidCon{
 };
 
 struct CentroidTimeCon : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	real_t t, t_lhs, t_rhs;
 
 	void Prepare();
@@ -511,6 +531,7 @@ struct CentroidTimeCon : CentroidCon{
 };
 
 struct CentroidEndPosConT : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int    iend;
 	vec3_t pe, ve, ae, pe_lhs, pe_rhs;
 	
@@ -523,6 +544,7 @@ struct CentroidEndPosConT : CentroidCon{
 };
 
 struct CentroidEndPosConR : CentroidCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int    iend;
 	quat_t qe, qe_lhs, qe_rhs, q_omega;
 	vec3_t we, ue, omega;
@@ -537,6 +559,7 @@ struct CentroidEndPosConR : CentroidCon{
 };
 
 struct CentroidDurationRangeCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey* obj;
 	real_t       dir;
 	real_t       bound;
@@ -548,6 +571,7 @@ struct CentroidDurationRangeCon : Constraint{
 };
 
 struct CentroidEndPosRangeCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey* obj;
 	int          iend;
 	int          idx;
@@ -565,6 +589,7 @@ struct CentroidEndPosRangeCon : Constraint{
 };
 
 struct CentroidEndContactCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey*     obj;
 	int              iend;
     int              iface;
@@ -582,6 +607,7 @@ struct CentroidEndContactCon : Constraint{
 };
 
 struct CentroidEndFrictionCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey*  obj;
 	int           iend;
 	int           dir;   //< x or y
@@ -599,6 +625,7 @@ struct CentroidEndFrictionCon : Constraint{
 };
 
 struct CentroidEndMomentCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	CentroidKey*  obj;
 	int           iend;
     int           dir;   //< x or y

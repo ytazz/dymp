@@ -111,7 +111,7 @@ void Solver::SetConstraintWeight(ID mask, real_t weight){
 	SetConstraintWeight(mask, vec3_t(weight, weight, weight));
 }
 
-void Solver::SetConstraintWeight(ID mask, vec3_t weight){
+void Solver::SetConstraintWeight(ID mask, const vec3_t& weight){
 	Request req;
 	req.type   = Request::Type::SetConstraintWeight;
 	req.mask   = mask;
@@ -124,7 +124,7 @@ void Solver::SetVariableWeight(ID mask, real_t weight){
 	SetVariableWeight(mask, vec3_t(weight, weight, weight));
 }
 
-void Solver::SetVariableWeight(ID mask, vec3_t weight){
+void Solver::SetVariableWeight(ID mask, const vec3_t& weight){
 	Request req;
 	req.type   = Request::Type::SetVariableWeight;
 	req.mask   = mask;

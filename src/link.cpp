@@ -40,21 +40,21 @@ void SLink::AddError(){
 	}
 }
 
-void SLink::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
+void SLink::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
 	for(int i = 0; i < con->nelem; i++)
-		J(i,i) = w[i]*coef;
+		J(i,i) = _w[i]*coef;
 }	
 
 //-------------------------------------------------------------------------------------------------
 
-void V2Link::SetCoef(vec2_t k){
+void V2Link::SetCoef(const vec2_t& k){
 	coef = k;
 }
 
 //-------------------------------------------------------------------------------------------------
 
-void V3Link::SetCoef(vec3_t k){
+void V3Link::SetCoef(const vec3_t& k){
 	coef = k;
 }
 
@@ -64,11 +64,11 @@ void X3Link::AddError(){
 	con->y += coef.cross( ((V3Var*)var)->val );
 }
 
-void X3Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
-	J(0,0) =  0.0         ; J(0,1) = -w[0]*coef[2]; J(0,2) =  w[0]*coef[1];
-	J(1,0) =  w[1]*coef[2]; J(1,1) =  0.0         ; J(1,2) = -w[1]*coef[0];
-	J(2,0) = -w[2]*coef[1]; J(2,1) =  w[2]*coef[0]; J(2,2) =  0.0         ;
+void X3Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
+	J(0,0) =  0.0          ; J(0,1) = -_w[0]*coef[2]; J(0,2) =  _w[0]*coef[1];
+	J(1,0) =  _w[1]*coef[2]; J(1,1) =  0.0          ; J(1,2) = -_w[1]*coef[0];
+	J(2,0) = -_w[2]*coef[1]; J(2,1) =  _w[2]*coef[0]; J(2,2) =  0.0          ;
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -78,10 +78,10 @@ void C2Link::AddError(){
 	con->y[1] += coef[1] * ((SVar*)var)->val;
 }
 
-void C2Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
-	J(0,0) = w[0]*coef[0];
-	J(1,0) = w[1]*coef[1];
+void C2Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
+	J(0,0) = _w[0]*coef[0];
+	J(1,0) = _w[1]*coef[1];
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -90,11 +90,11 @@ void C3Link::AddError(){
 	con->y += coef * dynamic_cast<SVar*>(var)->val;
 }
 
-void C3Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
-	J(0,0) = w[0]*coef[0];
-	J(1,0) = w[1]*coef[1];
-	J(2,0) = w[2]*coef[2];
+void C3Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
+	J(0,0) = _w[0]*coef[0];
+	J(1,0) = _w[1]*coef[1];
+	J(2,0) = _w[2]*coef[2];
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -103,10 +103,10 @@ void R2Link::AddError(){
 	con->y[0] += coef.dot( dynamic_cast<V2Var*>(var)->val );
 }
 
-void R2Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
-	J(0,0) = w[0]*coef[0];
-	J(0,1) = w[0]*coef[1];
+void R2Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
+	J(0,0) = _w[0]*coef[0];
+	J(0,1) = _w[0]*coef[1];
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -115,11 +115,11 @@ void R3Link::AddError(){
 	con->y[0] += coef.dot( dynamic_cast<V3Var*>(var)->val );
 }
 
-void R3Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
-	J(0,0) = w[0]*coef[0];
-	J(0,1) = w[0]*coef[1];
-	J(0,2) = w[0]*coef[2];
+void R3Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
+	J(0,0) = _w[0]*coef[0];
+	J(0,1) = _w[0]*coef[1];
+	J(0,2) = _w[0]*coef[2];
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -133,10 +133,10 @@ void M2Link::AddError(){
 	con->y[1] += coef.row(1) * dynamic_cast<V2Var*>(var)->val;
 }
 
-void M2Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
+void M2Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
 	for(int i = 0; i < 2; i++)for(int j = 0; j < 2; j++)
-		J(i,j) = w[i]*coef(i,j);
+		J(i,j) = _w[i]*coef(i,j);
 }	
 
 //-------------------------------------------------------------------------------------------------
@@ -149,10 +149,10 @@ void M3Link::AddError(){
 	con->y += coef * dynamic_cast<V3Var*>(var)->val;
 }
 
-void M3Link::RegisterCoef(Matrix&& J, vec3_t w){
-	w *= (con->scale_inv*var->scale);
+void M3Link::RegisterCoef(Matrix&& J, const vec3_t& w){
+	vec3_t _w = (con->scale_inv*var->scale)*w;
 	for(int i = 0; i < 3; i++)for(int j = 0; j < 3; j++)
-		J(i,j) = w[i]*coef(i,j);
+		J(i,j) = _w[i]*coef(i,j);
 }	
 
 }

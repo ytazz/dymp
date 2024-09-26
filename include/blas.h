@@ -13,7 +13,7 @@
 #endif
 
 #include <Eigen/Eigen>
-using namespace Eigen;
+//using namespace Eigen;
 
 namespace dymp{;
 
@@ -80,7 +80,7 @@ inline void  mat_copy (const Eigen::Matrix3d& m1, Matrix& y){
 }
 
 template<class T, int N>
-void vec_copy(const Eigen::Matrix<T, N, 1>& v, Vector& y){
+void vec_copy(const Eigen::Matrix<T, N, 1>& v, Vector&& y){
 	const T* v0 = &v[0];
 	double*  v1 = y.vh;
 	for(int i = 0; i < N; i++)

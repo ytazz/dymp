@@ -44,6 +44,8 @@ struct WholebodyData{
 		vec3_t  force_t, force_t_par, force_t_child;
 		vec3_t  force_r, force_r_par, force_r_child;
 		mat3_t  I;
+
+		Link();
 	};
 
 	struct End{
@@ -112,9 +114,11 @@ struct WholebodyData{
  */
 class WholebodyKey : public Keypoint {
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	Wholebody*  wb;
 	
 	struct End{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		V3Var*  var_force_t;  ///< force (contact frame)
 		V3Var*  var_force_r;  ///< moment
 
@@ -137,6 +141,7 @@ public:
 	};
 
 	struct Centroid{		
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		V3Var*  var_pos_t;
 		QVar*   var_pos_r;
 		V3Var*  var_vel_t;
@@ -165,6 +170,7 @@ public:
 	};
 
 	struct Joint{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		SVar*  var_q;
 		SVar*  var_qd;
 		SVar*  var_qdd;
@@ -214,6 +220,7 @@ public:
 
 class Wholebody : public Model{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	struct ContactState{
 		enum{
 			Free,
@@ -231,6 +238,7 @@ public:
 	};
 
 	struct Param {
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		real_t  totalMass;  ///< total mass of wholebody
 		vec3_t  nominalInertia;
 		real_t  gravity;
@@ -265,6 +273,7 @@ public:
 	};
 
 	struct Link{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		real_t       mass;         ///< mass of link
 		real_t       mass_ratio;
 		mat3_t       inertia;
@@ -276,10 +285,11 @@ public:
 		vec3_t       trn;          ///< translation from parent
 		vec3_t       axis;         ///< joint axis
 	
-		Link(real_t _mass = 0.0, vec3_t _inertia = zero3, vec3_t _center = zero3, int _iend = -1, int _iparent = -1, int _ijoint = -1, vec3_t _trn = zero3, vec3_t _axis = zero3);
+		Link(real_t _mass = 0.0, const vec3_t& _inertia = zero3, const vec3_t& _center = zero3, int _iend = -1, int _iparent = -1, int _ijoint = -1, const vec3_t& _trn = zero3, const vec3_t& _axis = zero3);
 	};
 
 	struct End{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		int    ilink;    ///< link index
 		vec3_t offset;
 		bool   enableTranslation;
@@ -288,7 +298,7 @@ public:
 		bool   enableMoment;
         bool   enableTerminalCost;
 
-		End(int _ilink = 0.0, vec3_t _offset = zero3, bool _enable_trn = true, bool _enable_rot = true, bool _enable_force = true, bool _enable_moment = true, bool _enable_terminal = true);
+		End(int _ilink = 0.0, const vec3_t& _offset = zero3, bool _enable_trn = true, bool _enable_rot = true, bool _enable_force = true, bool _enable_moment = true, bool _enable_terminal = true);
 	};
 	
    	struct Snapshot{
@@ -372,12 +382,14 @@ public:
 };
 
 struct WholebodyCon : Constraint {
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj[2];
 
 	WholebodyCon(Solver* solver, int _dim, int _tag, string _name, WholebodyKey* _obj, real_t _scale);
 };
 
 struct WholebodyJointPosCon : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int    ijoint;
 	real_t q0, qd0, qdd0, qddd0, q1, q_rhs;
 	real_t h, h2, h3;
@@ -391,6 +403,7 @@ struct WholebodyJointPosCon : WholebodyCon{
 };
 
 struct WholebodyJointVelCon : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int    ijoint;
 	real_t qd0, qdd0, qddd0, qd1, qd_rhs;
 	real_t h, h2;
@@ -404,6 +417,7 @@ struct WholebodyJointVelCon : WholebodyCon{
 };
 
 struct WholebodyJointAccCon : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int    ijoint;
 	real_t qdd0, qddd0, qdd1, qdd_rhs;
 	real_t h;
@@ -417,6 +431,7 @@ struct WholebodyJointAccCon : WholebodyCon{
 };
 
 struct WholebodyCentroidPosConT : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	real_t h, h2, m;
 	vec3_t g;
 	vec3_t pc0, vc0, ac0, pc1, pc_rhs;
@@ -430,6 +445,7 @@ struct WholebodyCentroidPosConT : WholebodyCon{
 };
 
 struct WholebodyCentroidVelConT : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	real_t h, m;
 	vec3_t g;
 	vec3_t vc0, ac0, vc1, vc_rhs;
@@ -443,6 +459,7 @@ struct WholebodyCentroidVelConT : WholebodyCon{
 };
 
 struct WholebodyCentroidPosConR : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	quat_t q1, q_rhs, q_omega;
 	vec3_t w0, u0, L, Ld, omega;
 	mat3_t Id, Iinv;
@@ -457,6 +474,7 @@ struct WholebodyCentroidPosConR : WholebodyCon{
 	WholebodyCentroidPosConR(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
 };
 struct WholebodyCentroidLCon : WholebodyCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	vec3_t L0, L1, Ld0, L_rhs;
 	real_t h;
 	
@@ -482,6 +500,7 @@ struct WholebodyCentroidVelConR : WholebodyCon{
 };
 */
 struct WholebodyDesPosConT : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
@@ -498,6 +517,7 @@ struct WholebodyDesPosConT : Constraint{
 };
 
 struct WholebodyDesPosConR : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t desired;
@@ -513,6 +533,7 @@ struct WholebodyDesPosConR : Constraint{
 };
 
 struct WholebodyDesVelConT : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
@@ -529,6 +550,7 @@ struct WholebodyDesVelConT : Constraint{
 };
 
 struct WholebodyDesVelConR : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
@@ -558,6 +580,7 @@ struct WholebodyLCon : Constraint{
 };
 */
 struct WholebodyContactPosConT : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t pc, pi, po, r;
@@ -573,6 +596,7 @@ struct WholebodyContactPosConT : Constraint{
 };
 
 struct WholebodyContactPosConR : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t q0, qi, qo;
@@ -587,6 +611,7 @@ struct WholebodyContactPosConR : Constraint{
 };
 
 struct WholebodyContactVelConT : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t vc, w0, pi, vi, wi, po, r;
@@ -602,6 +627,7 @@ struct WholebodyContactVelConT : Constraint{
 };
 
 struct WholebodyContactVelConR : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t q0, qi, qo;
@@ -617,6 +643,7 @@ struct WholebodyContactVelConR : Constraint{
 };
 
 struct WholebodyNormalForceCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t qi;
@@ -632,6 +659,7 @@ struct WholebodyNormalForceCon : Constraint{
 };
 
 struct WholebodyFrictionForceCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	int    dir;   //< x or y
@@ -649,6 +677,7 @@ struct WholebodyFrictionForceCon : Constraint{
 };
 
 struct WholebodyMomentCon : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	int    dir;   //< x or y

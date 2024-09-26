@@ -32,6 +32,7 @@ struct DDPCallback{
 
 class Solver{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	struct Method{
 		enum{
 			GaussNewton,   ///< Gauss Newton method
@@ -41,6 +42,7 @@ public:
 	};
 	
 	struct Param{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		bool              verbose;
 		int               method;
 		std::vector<int>  numIter;          ///< number of minor iterations
@@ -91,6 +93,7 @@ public:
 	};
 
 	struct Request{
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		struct Type{
 			enum{
 				Enable,
@@ -308,7 +311,7 @@ public:
 		This function sets the weight of constraints specified by mask.
 	 */
 	void SetConstraintWeight(ID mask, real_t weight);
-	void SetConstraintWeight(ID mask, vec3_t weight);
+	void SetConstraintWeight(ID mask, const vec3_t& weight);
 	
 	/** @brief	set variable weight
 	    @param  mask    variable id mask
@@ -318,7 +321,7 @@ public:
 		This function sets the weight of variables specified by mask.
      */
 	void SetVariableWeight  (ID mask, real_t weight);
-	void SetVariableWeight  (ID mask, vec3_t weight);
+	void SetVariableWeight  (ID mask, const vec3_t& weight);
 	
 	/** @brief calculate constraint error
 		@param mask			constraint id mask

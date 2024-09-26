@@ -9,7 +9,29 @@ namespace dymp{;
 
 const real_t damping = 0.0;
 
+WholebodyData::Link::Link(){
+	pos_t = zero3;
+	pos_r = unit_quat();
+	vel_t = zero3;
+	vel_r = zero3;
+	acc_t = zero3;
+	acc_r = zero3;
+	force_t = force_t_par = force_t_child = zero3;
+	force_r = force_r_par = force_r_child = zero3;
+	I = mat3_t::Zero();
+}
+
 WholebodyData::End::End(){
+	pos_t   = pos_t_abs = pos_tc = pos_te = zero3;
+	pos_r   = pos_r_abs = pos_rc = unit_quat();
+	vel_t   = vel_t_abs = zero3;
+	vel_r   = vel_r_abs = zero3;
+	acc_t   = zero3;
+	acc_r   = zero3;
+	force_t = zero3;
+	force_r = zero3;
+	cop_min = zero3;
+	cop_max = zero3;
 	pos_t_weight   = one3;
 	pos_r_weight   = one3;
 	vel_t_weight   = one3;
@@ -22,6 +44,14 @@ WholebodyData::End::End(){
 }
 
 WholebodyData::Centroid::Centroid(){
+	pos_t = zero3;   ///< com position
+	pos_r = unit_quat();
+	vel_t = zero3;   ///< com velocity
+	vel_r = zero3;
+	acc_t = zero3;
+	acc_r = zero3;
+	L_local = Ld_local = L_abs = zero3;
+	I_local = Id_local = I_abs = Id_abs = I_abs_inv = mat3_t::Zero();
 	pos_t_weight = one3;
 	pos_r_weight = one3;
 	vel_t_weight = one3;
@@ -40,23 +70,43 @@ void WholebodyData::Init(Wholebody* wb){
 
 	links.resize(nlink );
 	ends .resize(nend  );
-	q    .resize(njoint, 0.0);
-	qd   .resize(njoint, 0.0);
-	qdd  .resize(njoint, 0.0);
-	qddd .resize(njoint, 0.0);
-	tau  .resize(njoint, 0.0);
+	q    .resize(njoint);
+	qd   .resize(njoint);
+	qdd  .resize(njoint);
+	qddd .resize(njoint);
+	tau  .resize(njoint);
 
-	q_weight   .resize(njoint, 1.0);
-	qd_weight  .resize(njoint, 1.0);
-	qdd_weight .resize(njoint, 1.0);
-	qddd_weight.resize(njoint, 1.0);
-	
-	q_min.resize(njoint, -inf);
-	q_max.resize(njoint,  inf);
-	qd_min.resize(njoint, -inf);
-	qd_max.resize(njoint,  inf);
-	qdd_min.resize(njoint, -inf);
-	qdd_max.resize(njoint,  inf);
+	q_weight   .resize(njoint);
+	qd_weight  .resize(njoint);
+	qdd_weight .resize(njoint);
+	qddd_weight.resize(njoint);
+
+	q_min  .resize(njoint);
+	q_max  .resize(njoint);
+	qd_min .resize(njoint);
+	qd_max .resize(njoint);
+	qdd_min.resize(njoint);
+	qdd_max.resize(njoint);
+
+	for(int j = 0; j < njoint; j++){
+		q   [j] = 0.0;
+		qd  [j] = 0.0;
+		qdd [j] = 0.0;
+		qddd[j] = 0.0;
+		tau [j] = 0.0;
+
+		q_weight   [j] = 1.0;
+		qd_weight  [j] = 1.0;
+		qdd_weight [j] = 1.0;
+		qddd_weight[j] = 1.0;
+
+		q_min  [j] = -inf;
+		q_max  [j] =  inf;
+		qd_min [j] = -inf;
+		qd_max [j] =  inf;
+		qdd_min[j] = -inf;
+		qdd_max[j] =  inf;
+	}
 }
 
 void WholebodyData::InitJacobian(Wholebody* wb){
@@ -554,7 +604,7 @@ Wholebody::Param::Param() {
 
 //-------------------------------------------------------------------------------------------------
 
-Wholebody::Link::Link(real_t _mass, vec3_t _inertia, vec3_t _center, int _iend, int _iparent, int _ijoint, vec3_t _trn, vec3_t _axis){
+Wholebody::Link::Link(real_t _mass, const vec3_t& _inertia, const vec3_t& _center, int _iend, int _iparent, int _ijoint, const vec3_t& _trn, const vec3_t& _axis){
 	mass    = _mass;
 	iend    = _iend;
 	iparent = _iparent;
@@ -578,7 +628,7 @@ Wholebody::Joint::Joint(real_t Ir){
 
 //-------------------------------------------------------------------------------------------------
 
-Wholebody::End::End(int _ilink, vec3_t _offset, bool _enable_trn, bool _enable_rot, bool _enable_force, bool _enable_moment, bool _enable_terminal){
+Wholebody::End::End(int _ilink, const vec3_t& _offset, bool _enable_trn, bool _enable_rot, bool _enable_force, bool _enable_moment, bool _enable_terminal){
 	ilink             = _ilink;
 	offset            = _offset;
 	enableTranslation = _enable_trn;
@@ -701,7 +751,7 @@ void Wholebody::Shift(real_t offset){
 	
 		key0->centroid.var_pos_t->val = (1-s)*key0->centroid.var_pos_t->val + s*key1->centroid.var_pos_t->val;
 
-		AngleAxisd qrel(key0->centroid.var_pos_r->val.conjugate()*key1->centroid.var_pos_r->val);
+		Eigen::AngleAxisd qrel(key0->centroid.var_pos_r->val.conjugate()*key1->centroid.var_pos_r->val);
 		real_t theta = qrel.angle();
 		vec3_t axis  = qrel.axis ();
 		key0->centroid.var_pos_r->val = key0->centroid.var_pos_r->val*rot_quat((s*theta)*axis);
@@ -836,7 +886,7 @@ void Wholebody::Setup(){
 				
 			if(dend.state == ContactState::Free){
 				end.con_contact_pos_t->weight = vec3_t(0.0, 0.0, 0.0);
-				end.con_contact_vel_t->weight = vec3_t(0.0, 0.0, 0.0);				
+				end.con_contact_vel_t->weight = vec3_t(0.0, 0.0, 0.0);
 				end.con_contact_pos_r->weight = vec3_t(0.0, 0.0, 0.0);
 				end.con_contact_vel_r->weight = vec3_t(0.0, 0.0, 0.0);
 			}
@@ -967,7 +1017,7 @@ void Wholebody::CalcFK(WholebodyData& d){
 		WholebodyData::Link& dlnk  = d.links[i ];
 		WholebodyData::Link& dlnkp = d.links[ip];
 
-	    dlnk.pos_r = dlnkp.pos_r*AngleAxisd(d.q[links[i].ijoint], links[i].axis);
+	    dlnk.pos_r = dlnkp.pos_r*Eigen::AngleAxisd(d.q[links[i].ijoint], links[i].axis);
 		//dlnk.pos_r.unitize();
 		dlnk.pos_t = dlnkp.pos_t + dlnkp.pos_r*(links[i].trn - links[ip].center) + dlnk.pos_r*links[i].center;
 	}
@@ -979,13 +1029,12 @@ void Wholebody::CalcPosition(WholebodyData& d){
 	int nend   = (int)ends.size();
 
 	d.links[0].pos_t = zero3;
-	d.links[0].pos_r = quat_t(1,0,0,0);
+	d.links[0].pos_r = unit_quat();
 
-	vec3_t pc;
-
+	
 	CalcFK(d);
 		
-	pc = vec3_t::Zero();
+	vec3_t pc = zero3;
 	for(int i = 0; i < nlink; i++){
 		pc += links[i].mass_ratio*d.links[i].pos_t;
 	}
@@ -1018,10 +1067,8 @@ void Wholebody::CalcVelocity(WholebodyData& d){
 	int nend   = (int)ends  .size();
 	int njoint = (int)joints.size();
 	
-	vec3_t vc;
-	
-	d.links[0].vel_t = vec3_t::Zero();
-	d.links[0].vel_r = vec3_t::Zero();
+	d.links[0].vel_t = zero3;
+	d.links[0].vel_r = zero3;
 	
 	for(int i = 1; i < nlink; i++){
 		int ip = links[i].iparent;
@@ -1038,6 +1085,7 @@ void Wholebody::CalcVelocity(WholebodyData& d){
 	}
 
 	// calc com velocity
+	vec3_t vc = zero3;	
 	for(int i = 0; i < nlink; i++){
 		vc += links[i].mass_ratio*d.links[i].vel_t;
 	}
@@ -1071,8 +1119,8 @@ void Wholebody::CalcAcceleration(WholebodyData& d){
 	int nend   = (int)ends .size();
 	int njoint = (int)joints.size();
 
-	d.links[0].acc_t = vec3_t::Zero();
-	d.links[0].acc_r = vec3_t::Zero();
+	d.links[0].acc_t = zero3;
+	d.links[0].acc_r = zero3;
 	
 	for(int i = 1; i < nlink; i++){
 		int ip = links[i].iparent;
@@ -1090,7 +1138,7 @@ void Wholebody::CalcAcceleration(WholebodyData& d){
 	}
 
 	// calc com acceleration
-	vec3_t ac;
+	vec3_t ac = zero3;
 	for(int i = 0; i < nlink; i++){
 		ac += links[i].mass_ratio*d.links[i].acc_t;
 	}
@@ -1120,7 +1168,7 @@ void Wholebody::CalcAcceleration(WholebodyData& d){
 }
 
 void Wholebody::CalcComAcceleration (WholebodyData& d){
-	vec3_t fsum;
+	vec3_t fsum = zero3;
 	
 	int nend = (int)ends.size();
     for(int i = 0; i < nend; i++){
@@ -1131,7 +1179,7 @@ void Wholebody::CalcComAcceleration (WholebodyData& d){
 }
 
 void Wholebody::CalcBaseAngularAcceleration(WholebodyData& d){
-	vec3_t msum;
+	vec3_t msum = zero3;
 	
 	int nend = (int)ends.size();
     for(int i = 0; i < nend; i++){
@@ -1336,8 +1384,8 @@ void Wholebody::CalcForce(WholebodyData & d){
 	for(int i = nlink-1; i >= 0; i--){
 		WholebodyData::Link& dlnk = d.links[i];
 			
-		dlnk.force_t_child = vec3_t::Zero();
-		dlnk.force_r_child = vec3_t::Zero();
+		dlnk.force_t_child = zero3;
+		dlnk.force_r_child = zero3;
 
 		for(int ic : links[i].ichildren){
 			WholebodyData::Link& dlnkc = d.links[ic];
@@ -1858,6 +1906,7 @@ void WholebodyCentroidPosConR::Prepare(){
 	Iinv  = obj[0]->data.centroid.I_abs_inv;
 	//u0    = obj[0]->centroid.var_acc_r->val + Iinv*(obj[0]->msum - (obj[0]->wb->param.useLd ? vec3_t(Id*w0 + w0.cross(obj[0]->q0*L) + obj[0]->q0*Ld) : zero3));
 	//omega = h*w0 + (0.5*h2)*u0;
+	omega   = h*w0;
 	q_omega = rot_quat(omega);
 	R_omega = q_omega.toRotationMatrix();
 	A_omega = rot_jacobian(omega);

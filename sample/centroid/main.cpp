@@ -4,6 +4,8 @@
 #include <util.h>
 #include <rollpitchyaw.h>
 
+#include <wholebody.h>
+
 /**
  centroidal trajectory planning with unscheduled contact
 */
@@ -193,69 +195,69 @@ public:
         // flat ground
         if( sceneSelect == Scene::Flat ){
             real_t r = 0.0;
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         }
         // gap
         if(sceneSelect == Scene::Gap){
             real_t r = 0.0;
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         }
         // gap with rail
         if(sceneSelect == Scene::GapWithRail){
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
 
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         }
         // gap with wall
         if(sceneSelect == Scene::GapWithWall){
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 1.0, 0.0);
+            face.normal = ey;
             centroid->faces.push_back(face);
 
-            face.normal = vec3_t(0.0, -1.0, 0.0);
+            face.normal = -ey;
             centroid->faces.push_back(face);
         }
         if(sceneSelect == Scene::Stairs){
             real_t r = 0.01;
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
 
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
 
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
 
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         }
 	    if(sceneSelect == Scene::Steps){
             real_t r = 0.01;
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         
-            face.normal = vec3_t(0.0, 0.0, 1.0);
+            face.normal = ez;
             centroid->faces.push_back(face);
         }
 		

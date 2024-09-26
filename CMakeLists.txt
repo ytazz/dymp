@@ -5,6 +5,8 @@ project(dymp)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}")
 
+set(CMAKE_CXX_STANDARD 20)
+
 set(DYMP_BUILD_SAMPLE false CACHE BOOL "build sample programs")
 
 if(WIN32)
@@ -14,7 +16,14 @@ if(WIN32)
 endif()
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "/openmp /wd4530")
+  set(CMAKE_CXX_FLAGS "/openmp /wd4530")
+  option(ENABLE_MSVC_AVX  "Enable AVX instructions on VC++." ON)
+  option(ENABLE_MSVC_AVX2 "Enable AVX2 instructions on VC++." ON)
+  if(ENABLE_MSVC_AVX2)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+  elseif(ENABLE_MSVC_AVX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
+  endif()
 endif()
 if(UNIX)
 	set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
@@ -23,17 +32,18 @@ if(UNIX)
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 endif()
 
-find_package(Boost  REQUIRED)
+#find_package(Boost  REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(MKL    REQUIRED)
 
 if(DYMP_BUILD_SAMPLE)
 	find_package(OpenGL  REQUIRED)
 	find_package(glfw3   REQUIRED)
+	include_directories(${GLFW_INCLUDE_DIR})
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${Boost_INCLUDE_DIR})
+#include_directories(${Boost_INCLUDE_DIR})
 include_directories(${MKL_INCLUDE_DIR})
 #include_directories(${EIGEN3_INCLUDE_DIR})
 
@@ -92,12 +102,12 @@ add_library(dymp
 target_link_libraries(dymp
 	Eigen3::Eigen
     ${MKL_LIBRARIES}
-    ${Boost_LIBRARIES}
 )
 if(DYMP_BUILD_SAMPLE)
 	target_link_libraries(dymp
 		OpenGL::GL
-	    ${GLFW_LIBRARIES}
+		glfw
+	    #${GLFW_LIBRARIES}
 	)
 endif()
 
@@ -118,4 +128,10 @@ install(EXPORT dympExport
 if(DYMP_BUILD_SAMPLE)
 	add_subdirectory(sample)
 endif()
+
+## print all variables
+get_cmake_property(_variableNames VARIABLES)
+foreach(_variableName ${_variableNames})
+	message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 

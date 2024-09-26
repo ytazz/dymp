@@ -19,7 +19,7 @@ Camera::Camera(){
     longitude = 0.0f;
     distance  = 1.0f;
     
-    target = Vector3f::Zero();
+    target = Eigen::Vector3f::Zero();
 
     rotMask  = ButtonState::Left;
     zoomMask = ButtonState::Right;
@@ -29,15 +29,15 @@ Camera::Camera(){
     zoomGain = 0.01f;
     trnGain  = 1.0f;
     
-    lonRange = Vector2f(deg_to_rad(-180.0), deg_to_rad(180.0));
-    latRange = Vector2f(deg_to_rad(-90.0), deg_to_rad(90.0));
-    distRange = Vector2f(0.01f, 100.0f);
+    lonRange  = Eigen::Vector2f(deg_to_rad(-180.0), deg_to_rad(180.0));
+    latRange  = Eigen::Vector2f(deg_to_rad(-90.0), deg_to_rad(90.0));
+    distRange = Eigen::Vector2f(0.01f, 100.0f);
 
     CalcTransform();
 }
 
 void Camera::CalcTransform(){
-	affProj = Matrix4f::Zero();
+	affProj = Eigen::Matrix4f::Zero();
 	affProj(0,0) =  2.0f/width;
 	affProj(1,1) =  2.0f/height;
 	affProj(2,2) = -2.0f/(back - front);
@@ -50,7 +50,7 @@ void Camera::CalcTransform(){
 			cos(latitude) * sin(longitude),
 			sin(latitude),
 			cos(latitude) * cos(longitude));
-    ori = Matrix3f(AngleAxisf(longitude, Vector3f::UnitY())*AngleAxisf(-latitude, Vector3f::UnitX()));
+    ori = Eigen::Matrix3f(Eigen::AngleAxisf(longitude, Eigen::Vector3f::UnitY())*Eigen::AngleAxisf(-latitude, Eigen::Vector3f::UnitX()));
 
     affView.translation() = pos;
     affView.linear() = ori;
@@ -70,7 +70,7 @@ void Camera::OnMouseMove(int button, int dx, int dy){
 	    distance = min(max(distRange[0], distance), distRange[1]);
 	}
 	if(button == trnMask){
-		target += ori * Vector3f(-(float)dx * distance * trnGain, (float)dy * distance * trnGain, 0.0f);
+		target += ori * Eigen::Vector3f(-(float)dx * distance * trnGain, (float)dy * distance * trnGain, 0.0f);
 	}
     CalcTransform();
 }

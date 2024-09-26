@@ -29,7 +29,8 @@ class QVar;
  */
 class Constraint : public ID{
 public:
-    struct Type{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	struct Type{
         enum{
             Equality,
             InequalityPenalty,
@@ -99,21 +100,25 @@ public:
 /** fixation constraint
  */
 struct FixConS : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	real_t	desired;
 	virtual void CalcDeviation();
 	FixConS(Solver* solver, ID id, SVar* var, real_t _scale);
 };
 struct FixConV2 : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	vec2_t	desired;
 	virtual void CalcDeviation();
 	FixConV2(Solver* solver, ID id, V2Var* var, real_t _scale);
 };
 struct FixConV3 : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	vec3_t	desired;
 	virtual void CalcDeviation();
 	FixConV3(Solver* solver, ID id, V3Var* var, real_t _scale);
 };
 struct FixConQ : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	quat_t	desired;
 	virtual void CalcDeviation();
 	FixConQ(Solver* solver, ID id, QVar* var, real_t _scale);
@@ -122,6 +127,7 @@ struct FixConQ : Constraint{
 /**	range constraint for scalar variables
  */
 struct RangeConS : Constraint{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	real_t	_min, _max;
 	bool	on_lower, on_upper;
 

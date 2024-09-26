@@ -10,7 +10,8 @@ class Solver;
 
 class Variable : public ID{
 public:
-    /// variable types
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	/// variable types
 	enum{
 		Scalar = 1,
 		Vec2   = 2,
@@ -49,6 +50,7 @@ public:
 template<class T>
 class VariableImpl : public Variable{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	T val;
 	T val_tmp;
 
@@ -65,6 +67,7 @@ public:
  */
 class SVar : public VariableImpl<double>{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	virtual void Reset(){
 		val = val_tmp = 0.0;
 	}
@@ -82,6 +85,7 @@ public:
  */
 class V2Var : public VariableImpl<vec2_t>{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	virtual void Reset(){
 		val     = vec2_t(0.0, 0.0);
 		val_tmp = vec2_t(0.0, 0.0);
@@ -101,9 +105,10 @@ public:
  */
 class V3Var : public VariableImpl<vec3_t>{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	virtual void Reset(){
-		val     = vec3_t(0.0, 0.0, 0.0);
-		val_tmp = vec3_t(0.0, 0.0, 0.0);
+		val     = zero3;
+		val_tmp = zero3;
 	}
 	virtual void Modify(double alpha){
 		val = val_tmp + (alpha*scale) * dx;
@@ -119,15 +124,16 @@ public:
  */
 class QVar : public VariableImpl<quat_t>{
 public:
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	virtual void Reset(){
-		val     = quat_t(0.0, 0.0, 0.0, 1.0);
-		val_tmp = quat_t(0.0, 0.0, 0.0, 1.0);
+		val     = unit_quat();
+		val_tmp = unit_quat();
 	}
 	virtual void Modify(double alpha){
 		double dx_norm = dx.norm();
         if(dx_norm < eps)
              val = val_tmp;
-        else val = AngleAxisd((alpha*scale)*dx_norm, dx/dx_norm) * val_tmp;
+        else val = Eigen::AngleAxisd((alpha*scale)*dx_norm, dx/dx_norm) * val_tmp;
 	}
 
 	QVar(Solver* solver, ID _id = ID(), real_t _scale = 1.0):VariableImpl(Variable::Quat, solver, _id, _scale){

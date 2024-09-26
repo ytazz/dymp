@@ -1,6 +1,11 @@
 #pragma once
 
 #include <Eigen/Eigen>
+#if EIGEN_HAS_CXX17_OVERALIGN == 1
+#pragma message("hoge")
+#else 
+#pragma message("moge")
+#endif
 
 namespace dymp{;
 

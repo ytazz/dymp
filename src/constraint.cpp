@@ -206,7 +206,7 @@ FixConQ::FixConQ(Solver* solver, ID id, QVar* var, real_t _scale):Constraint(sol
 void FixConQ::CalcDeviation(){
 	quat_t q0 = desired;
 	quat_t q1 = ((QVar*)links[0]->var)->val;
-	AngleAxisd qerror(q0.conjugate() * q1);
+	Eigen::AngleAxisd qerror(q0.conjugate() * q1);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
 	if(theta > _pi)

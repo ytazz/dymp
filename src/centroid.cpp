@@ -15,17 +15,38 @@ inline bool is_valid(int i){
 inline bool is_valid(real_t v){
 	return v != inf;
 }
-inline bool is_valid(vec2_t v){
+inline bool is_valid(const vec2_t& v){
 	return (v.x() != inf && v.y() != inf);
 }
-inline bool is_valid(vec3_t v){
+inline bool is_valid(const vec3_t& v){
 	return (v.x() != inf && v.y() != inf && v.z() != inf);
 }
-inline bool is_valid(quat_t v){
+inline bool is_valid(const quat_t& v){
 	return (v.w() != inf && v.x() != inf && v.y() != inf && v.z() != inf);
 }
 
 CentroidData::End::End(){
+	pos_t   = zero3;
+	pos_r   = unit_quat();
+	vel_t   = zero3;
+	vel_r   = zero3;
+	force_t = zero3;
+	force_r = zero3;
+	stiff   = 0.0;
+	cmp     = zero2;
+	force   = zero3;
+	moment  = zero3;
+	pos_tc  = zero3;
+	iface   = -1;
+	state   = Centroid::ContactState::Free;
+
+	t_lift = t_land = 0.0;
+	pos_t_lift = pos_t_land = zero3;
+	pos_r_lift = pos_r_land = unit_quat();
+	pos_t_lift_local = pos_t_land_local = zero3;
+	pos_r_lift_local = pos_r_land_local = unit_quat();
+	vel_t_ave = vel_r_ave = zero3;
+		
 	pos_t_weight  = one3;
 	pos_r_weight  = one3;
 	vel_t_weight  = one3;
@@ -37,6 +58,21 @@ CentroidData::End::End(){
 }
 
 CentroidData::CentroidData(){
+	pos_t = zero3;
+	pos_r = unit_quat();
+	vel_t = zero3;
+	vel_r = zero3;
+	L     = zero3;
+	acc_t = zero3;
+	acc_r = zero3;
+	time     = 0.0;
+	duration = 0.0;
+	
+	lbar = 0.0;
+	pbar = rbar = etabar = zero3;
+	fsum = etasum = zero3;
+	p_rhs = zero3;
+
 	pos_t_weight = one3;
 	pos_r_weight = one3;
 	vel_t_weight = one3;
@@ -58,7 +94,7 @@ void CentroidData::Init(Centroid* cen){
 	for(int k = 0; k <= ndiv; k++){
 		I   [k] = cen->param.I;
 		Iinv[k] = I[k].inverse();
-		Llocal[k] = vec3_t::Zero();
+		Llocal[k] = zero3;
 	}
 }
 
@@ -872,7 +908,7 @@ Centroid::Waypoint::End::Value::Value(){
 	vel_r = inf3;
 	iface = infi;
 }
-Centroid::Waypoint::End::Value::Value(vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w, int _iface){
+Centroid::Waypoint::End::Value::Value(const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w, int _iface){
 	pos_t = _p;
 	pos_r = _q;
 	vel_t = _v;
@@ -888,7 +924,7 @@ Centroid::Waypoint::End::Weight::Weight(){
 	cmp    = inf2;
 	moment = inf3;
 }
-Centroid::Waypoint::End::Weight::Weight(vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w, real_t _l, vec2_t _r, vec3_t _eta){
+Centroid::Waypoint::End::Weight::Weight(const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w, real_t _l, const vec2_t& _r, const vec3_t& _eta){
 	pos_t  = _p;
 	pos_r  = _q;
 	vel_t  = _v;
@@ -907,7 +943,7 @@ Centroid::Waypoint::Value::Value(){
 	vel_t    = vec3_t(inf, inf, inf);
 	vel_r    = vec3_t(inf, inf, inf);
 }
-Centroid::Waypoint::Value::Value(real_t _t, real_t _tau, vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _w){
+Centroid::Waypoint::Value::Value(real_t _t, real_t _tau, const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _w){
 	time     = _t;
 	duration = _tau;
 	pos_t    = _p;
@@ -923,7 +959,7 @@ Centroid::Waypoint::Weight::Weight(){
 	vel_t    = inf3;
 	L        = inf3;
 }
-Centroid::Waypoint::Weight::Weight(real_t _t, real_t _tau, vec3_t _p, vec3_t _q, vec3_t _v, vec3_t _L){
+Centroid::Waypoint::Weight::Weight(real_t _t, real_t _tau, const vec3_t& _p, const vec3_t& _q, const vec3_t& _v, const vec3_t& _L){
 	time     = _t;
 	duration = _tau;
 	pos_t    = _p;
@@ -977,7 +1013,7 @@ void Centroid::SetScaling(){
 }
 
 void Centroid::CalcComAcceleration(CentroidData& d){
-	vec3_t fsum;
+	vec3_t fsum = zero3;
 
 	int nend = (int)d.ends.size();
 	for(int i = 0; i < nend; i++){
@@ -990,7 +1026,7 @@ void Centroid::CalcComAcceleration(CentroidData& d){
 }
 
 void Centroid::CalcBaseAcceleration(CentroidData& d){
-	vec3_t msum;
+	vec3_t msum = zero3;
 
 	int nend = (int)d.ends.size();
 	for(int i = 0; i < nend; i++){
@@ -1617,7 +1653,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 	if(d1.time == d0.time){
         d.pos_t = d0.pos_t;
         d.vel_t = d0.vel_t;
-		d.acc_t = vec3_t::Zero();
+		d.acc_t = zero3;
 
 		d.pos_r = d0.pos_r;
 		d.L     = d0.L;
@@ -1708,7 +1744,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 
 				    real_t sw = param.swingHeight;
 				    vec3_t nx = d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift;
-				    vec3_t ny;
+				    vec3_t ny(0.0, 1.0, 0.0);
 				    vec3_t nz(0.0, 0.0, 1.0);
 				    real_t nxnorm = nx.norm();
 
@@ -1722,7 +1758,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 					    vec3_t pe = d0.ends[i].pos_t_lift_local + ch *(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cv *sw)*nz;
 					    vec3_t ve =                               chd*(d1.ends[i].pos_t_land_local - d0.ends[i].pos_t_lift_local) + (cvd*sw)*nz;
 
-					    AngleAxisd qrel(d0.ends[i].pos_r_lift_local.conjugate()*d1.ends[i].pos_r_land_local);
+					    Eigen::AngleAxisd qrel(d0.ends[i].pos_r_lift_local.conjugate()*d1.ends[i].pos_r_land_local);
 					    vec3_t axis   = qrel.axis ();
 					    real_t theta  = qrel.angle();
 					    if(theta > _pi)
@@ -1745,7 +1781,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 						vec2_t p0(d0.ends[i].pos_t_lift.x(), d0.ends[i].pos_t_lift.y());
 						vec2_t p1(d1.ends[i].pos_t_land.x(), d1.ends[i].pos_t_land.y());
 						vec2_t psup(d0.ends[!i].pos_t.x(), d0.ends[!i].pos_t.y());
-						vec2_t swh;
+						vec2_t swh = zero2;
 						/*real_t s = (psup - p0)*(p1 - p0)/(p1 - p0).square();
 						if(0.0 < s && s < 1.0){
 							vec2_t psup_proj = p0 + s*(p1 - p0);
@@ -1759,7 +1795,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 						vec3_t pe = d0.ends[i].pos_t_lift + ch *(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cv *sw)*nz + (cv )*vec3_t(swh.x(), swh.y(), 0.0);
 						vec3_t ve =                         chd*(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cvd*sw)*nz + (cvd)*vec3_t(swh.x(), swh.y(), 0.0);
 
-						AngleAxisd qrel(d0.ends[i].pos_r_lift.conjugate()*d1.ends[i].pos_r_land);
+						Eigen::AngleAxisd qrel(d0.ends[i].pos_r_lift.conjugate()*d1.ends[i].pos_r_land);
 					    vec3_t axis   = qrel.axis ();
 					    real_t theta  = qrel.angle();
 					    if(theta > _pi)
@@ -2208,7 +2244,7 @@ void CentroidEndPosRangeCon::Prepare(){
 	pe      = obj->data.ends[iend].pos_t;
 	pbase   = obj->cen->ends[iend].basePos;
 	
-	eta = vec3_t::Zero();
+	eta = zero3;
 	eta[idx] = dir;
 	eta_abs = q*eta;
 
@@ -2521,7 +2557,7 @@ void CentroidPosConT::CalcDeviation(){
 }
 
 void CentroidPosConR::CalcDeviation(){
-	AngleAxisd qerror(obj[0]->data.q_rhs.back().conjugate()*obj[1]->data.pos_r);
+	Eigen::AngleAxisd qerror(obj[0]->data.q_rhs.back().conjugate()*obj[1]->data.pos_r);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
 	if(theta > _pi)
@@ -2544,7 +2580,7 @@ void CentroidEndPosConT::CalcDeviation(){
 }
 
 void CentroidEndPosConR::CalcDeviation(){
-	AngleAxisd qerror(qe_rhs.conjugate()*qe_lhs);
+	Eigen::AngleAxisd qerror(qe_rhs.conjugate()*qe_lhs);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
 	if(theta > _pi)

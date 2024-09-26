@@ -6,7 +6,7 @@
 #include <limits>
 using namespace std;
 
-using namespace Eigen;
+//using namespace Eigen;
 
 namespace dymp{;
 
@@ -23,6 +23,9 @@ const vec3_t one3(1.0, 1.0, 1.0);
 const vec3_t ex  (1.0, 0.0, 0.0);
 const vec3_t ey  (0.0, 1.0, 0.0);
 const vec3_t ez  (0.0, 0.0, 1.0);
+inline quat_t unit_quat(){
+	return quat_t(1.0, 0.0, 0.0, 0.0);
+}
 
 inline real_t deg_to_rad(real_t deg){
     return (_pi/180.0)*deg;
@@ -36,14 +39,14 @@ inline real_t square(real_t x){
 	return x*x;
 }
 
-inline mat3_t vvtrmat(vec3_t c, vec3_t r){
+inline mat3_t vvtrmat(const vec3_t& c, const vec3_t& r){
 	mat3_t m;
 	for(int i = 0; i < 3; i++) for(int j = 0; j < 3; j++)
 		m(i,j) = c[i]*r[j];
 	return m;
 }
 
-inline mat3_t cross_mat(vec3_t r){
+inline mat3_t cross_mat(const vec3_t& r){
     mat3_t m;
     m <<  0   , -r(2),  r(1),
           r(2),  0   , -r(0),
@@ -51,22 +54,22 @@ inline mat3_t cross_mat(vec3_t r){
     return m;
 }
 
-inline void cross_mat(vec3_t r, real_t k, Matrix& m){
+inline void cross_mat(const vec3_t& r, real_t k, Matrix& m){
 	m(0,0) =  0.0    ; m(0,1) = -k*r.z(); m(0,2) =  k*r.y();
 	m(1,0) =  k*r.z(); m(1,1) =  0.0    ; m(1,2) = -k*r.x();
 	m(2,0) = -k*r.y(); m(2,1) =  k*r.x(); m(2,2) =  0.0    ;
 }
 
-inline quat_t rot_quat(vec3_t w){
+inline quat_t rot_quat(const vec3_t& w){
     real_t wnorm = w.norm();
     if(wnorm < eps)
-        return quat_t(1.0, 0.0, 0.0, 0.0);
+        return unit_quat();
 
-    return quat_t(AngleAxisd(wnorm, w/wnorm));
+    return quat_t(Eigen::AngleAxisd(wnorm, w/wnorm));
 }
 
-inline vec3_t quat_error(quat_t q0, quat_t q1){
-    AngleAxisd qerror(q0.conjugate()*q1);
+inline vec3_t quat_error(const quat_t& q0, const quat_t& q1){
+    Eigen::AngleAxisd qerror(q0.conjugate()*q1);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
 	while(theta >  _pi)
@@ -78,7 +81,7 @@ inline vec3_t quat_error(quat_t q0, quat_t q1){
 	return (1.0/2.0)*(q0*w + q1*w);
 }
 
-inline mat3_t rot_jacobian(vec3_t omega){
+inline mat3_t rot_jacobian(const vec3_t& omega){
 	real_t theta = omega.norm();
 	if(theta < eps)
 		return mat3_t::Identity();
@@ -91,7 +94,7 @@ inline mat3_t rot_jacobian(vec3_t omega){
 }
 
 template<class V>
-inline V interpolate_pos_linear_diff(real_t t, real_t t0, V p0, real_t t1, V p1){
+inline V interpolate_pos_linear_diff(real_t t, real_t t0, const V& p0, real_t t1, const V& p1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return p0;
@@ -101,7 +104,7 @@ inline V interpolate_pos_linear_diff(real_t t, real_t t0, V p0, real_t t1, V p1)
 }
 
 template<class V>
-inline V interpolate_pos_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1, V v1){
+inline V interpolate_pos_cubic(real_t t, real_t t0, const V& p0, const V& v0, real_t t1, const V& p1, const V& v1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return p0;
@@ -114,7 +117,7 @@ inline V interpolate_pos_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1,
 }
 
 template<class V>
-inline V interpolate_vel_linear_diff(real_t t0, V p0, real_t t1, V p1){
+inline V interpolate_vel_linear_diff(real_t t0, const V& p0, real_t t1, const V& p1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return V();
@@ -123,7 +126,7 @@ inline V interpolate_vel_linear_diff(real_t t0, V p0, real_t t1, V p1){
 }
 
 template<class V>
-inline V interpolate_vel_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1, V v1){
+inline V interpolate_vel_cubic(real_t t, real_t t0, const V& p0, const V& v0, real_t t1, const V& p1, const V& v1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return V();
@@ -134,33 +137,33 @@ inline V interpolate_vel_cubic(real_t t, real_t t0, V p0, V v0, real_t t1, V p1,
     return (6.0*(s - s2)/h) * (p1 - p0) + (1.0 - 4*s + 3*s2) * v0 + (-2*s + 3*s2) * v1;
 }
 
-inline quat_t interpolate_slerp_int(real_t t, real_t t0, quat_t q0, vec3_t w0){
+inline quat_t interpolate_slerp_int(real_t t, real_t t0, const quat_t& q0, const vec3_t& w0){
 	real_t w0norm = w0.norm();
 	if(w0norm == 0.0)
 		return q0;
 	vec3_t axis = w0/w0norm;
 
-	return AngleAxisd(w0norm*(t - t0), axis)*q0;
+	return Eigen::AngleAxisd(w0norm*(t - t0), axis)*q0;
 }
 
-inline quat_t interpolate_slerp_diff(real_t t, real_t t0, quat_t q0, real_t t1, quat_t q1){
+inline quat_t interpolate_slerp_diff(real_t t, real_t t0, const quat_t& q0, real_t t1, const quat_t& q1){
     real_t h = t1 - t0;
 	if(h < eps)
 		return q0;
 
     real_t s = (t - t0)/h;
     
-    AngleAxisd qrel(q0.conjugate()*q1);
+    Eigen::AngleAxisd qrel(q0.conjugate()*q1);
 
-	return q0*AngleAxisd(s*qrel.angle(), qrel.axis());
+	return q0*Eigen::AngleAxisd(s*qrel.angle(), qrel.axis());
 }
 
-inline vec3_t interpolate_angvel_diff(real_t t0, quat_t q0, real_t t1, quat_t q1){
+inline vec3_t interpolate_angvel_diff(real_t t0, const quat_t& q0, real_t t1, const quat_t& q1){
 	real_t h = t1 - t0;
 	if(h < eps)
 		return vec3_t::Zero();
 
-	AngleAxisd qrel(q0.conjugate()*q1);
+	Eigen::AngleAxisd qrel(q0.conjugate()*q1);
 	vec3_t w = (qrel.angle()/h)*qrel.axis();
 	return q0*w;
 }
@@ -185,7 +188,7 @@ public:
 		pos_t	pos;
 		vel_t	vel;
 
-		point_t(real_t _t, pos_t _p, vel_t _v):t(_t), pos(_p), vel(_v){}
+		point_t(real_t _t, const pos_t& _p, const vel_t& _v):t(_t), pos(_p), vel(_v){}
 	};
 
 	int	type;
