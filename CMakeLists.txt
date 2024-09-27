@@ -16,7 +16,7 @@ if(WIN32)
 endif()
 
 if(WIN32)
-  set(CMAKE_CXX_FLAGS "/openmp /wd4530")
+  set(CMAKE_CXX_FLAGS "/openmp /wd4530 /wd4819")
   option(ENABLE_MSVC_AVX  "Enable AVX instructions on VC++." ON)
   option(ENABLE_MSVC_AVX2 "Enable AVX2 instructions on VC++." ON)
   if(ENABLE_MSVC_AVX2)
@@ -100,13 +100,13 @@ add_library(dymp
  )
  
 target_link_libraries(dymp
-	Eigen3::Eigen
-    ${MKL_LIBRARIES}
+	PRIVATE Eigen3::Eigen
+    PRIVATE ${MKL_LIBRARIES}
 )
 if(DYMP_BUILD_SAMPLE)
 	target_link_libraries(dymp
-		OpenGL::GL
-		glfw
+		PRIVATE OpenGL::GL
+		PRIVATE glfw      
 	    #${GLFW_LIBRARIES}
 	)
 endif()

@@ -491,10 +491,10 @@ void Solver::CalcDirection(){
 			int info = LAPACKE_dgels(LAPACK_COL_MAJOR, 'N', dimcon+dimvar_weighted, dimvar, 1, &A(0, 0), dimcon+dimvar_weighted, &b2(0), nb);
 			if(info < 0){
 				printf("dgels: %d-th argument illegal\n", -info);
-				printf(" 6-th argument: %lx\n", &A(0, 0)             );
+				printf(" 6-th argument: %p\n", &A(0, 0)             );
 				printf(" 7-th argument: %d\n", dimcon+dimvar_weighted);
-				printf(" 8-th argument: %lx\n", &b2(0)               );
-				printf(" 9-th argument: %d\n" , nb                   );
+				printf(" 8-th argument: %p\n", &b2(0)               );
+				printf(" 9-th argument: %d\n", nb                   );
 			}
 			if(info > 0){
 				printf("dgels: matrix not full-rank\n");

@@ -3,6 +3,7 @@ add_executable(dymp_centroid
   )
 
 target_link_libraries(dymp_centroid
-  dymp
-  glfw
+  PRIVATE dymp
+  PRIVATE Eigen3::Eigen
+  PRIVATE glfw
 )
