@@ -468,10 +468,8 @@ void WholebodyKey::Prepare() {
 		End& end = ends[i];
 		WholebodyData::End & dend = data.ends [i];
 		
-		if(next){
-			dend.force_t = end.var_force_t->val;
-			dend.force_r = end.var_force_r->val;
-		}
+		dend.force_t = end.var_force_t->val;
+		dend.force_r = end.var_force_r->val;
 	}
 
 	wb->CalcPosition               (data);
@@ -1018,7 +1016,7 @@ void Wholebody::CalcFK(WholebodyData& d){
 		WholebodyData::Link& dlnkp = d.links[ip];
 
 	    dlnk.pos_r = dlnkp.pos_r*Eigen::AngleAxisd(d.q[links[i].ijoint], links[i].axis);
-		//dlnk.pos_r.unitize();
+		dlnk.pos_r.normalize();
 		dlnk.pos_t = dlnkp.pos_t + dlnkp.pos_r*(links[i].trn - links[ip].center) + dlnk.pos_r*links[i].center;
 	}
 }
@@ -2190,11 +2188,15 @@ void WholebodyCentroidPosConR::CalcCoef(){
 	dynamic_cast<M3Link*>(links[idx++])->SetCoef(-tmp);
 
 	int njoint = (int)obj[0]->joints.size();
-	for(int i = 0; i < njoint; i++){
-		dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_q.Col(i)(0)))));
+	for(int j = 0; j < njoint; j++){
+		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_q.Col(i)(0)))));
+        vec3_t v(obj[0]->J_L_q(0,j), obj[0]->J_L_q(1,j), obj[0]->J_L_q(2,j));
+        dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*v);
 	}
-	for(int i = 0; i < njoint; i++){
-		dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_qd.Col(i)(0)))));
+	for(int j = 0; j < njoint; j++){
+        //dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*(*((vec3_t*)&(obj[0]->J_L_qd.Col(i)(0)))));
+        vec3_t v(obj[0]->J_L_qd(0,j), obj[0]->J_L_qd(1,j), obj[0]->J_L_qd(2,j));
+        dynamic_cast<C3Link*>(links[idx++])->SetCoef(tmpR0*v);
 	}
     /*
 	mat3_t tmp = A_omega*((0.5*h2)*Iinv);
@@ -2277,8 +2279,10 @@ void WholebodyDesPosConT::CalcCoef(){
 	int njoint = (int)obj->joints.size();
 
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jv = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(0,3)(0)));
-		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jv = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(0,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+        vec3_t Jv(obj->R0_Jfk[i](0,j), obj->R0_Jfk[i](1,j), obj->R0_Jfk[i](2,j));
+        vec3_t Jw(obj->R0_Jfk[i](3,j), obj->R0_Jfk[i](4,j), obj->R0_Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r));
 	}
 }
@@ -2295,7 +2299,8 @@ void WholebodyDesPosConR::CalcCoef(){
 	int i = obj->wb->ends[iend].ilink;
 
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+        vec3_t Jw(obj->R0_Jfk[i](3,j), obj->R0_Jfk[i](4,j), obj->R0_Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw);
 	}
 }
@@ -2316,9 +2321,12 @@ void WholebodyDesVelConT::CalcCoef(){
 	for(int j = 0; j < njoint; j++){
 		//vec3_t& Hv = *((vec3_t*)&(obj->R0_Hfk[i].Col(j).SubVector(0,3)(0)));
 		//vec3_t& Hw = *((vec3_t*)&(obj->R0_Hfk[i].Col(j).SubVector(3,3)(0)));
-		vec3_t& Jv = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(0,3)(0)));
-		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
-		vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
+		//vec3_t& Jv = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(0,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
+        vec3_t Jv(obj->R0_Jfk[i](0,j), obj->R0_Jfk[i](1,j), obj->R0_Jfk[i](2,j));
+		vec3_t Jw(obj->R0_Jfk[i](3,j), obj->R0_Jfk[i](4,j), obj->R0_Jfk[i](5,j));
+		vec3_t JL(obj->J_L_qd(0,j), obj->J_L_qd(1,j), obj->J_L_qd(2,j));
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Hv + Hw % r);
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r));
         dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jv + Jw.cross(r) + pi_abs.cross(Iinv*(q0*JL)));
@@ -2339,8 +2347,10 @@ void WholebodyDesVelConR::CalcCoef(){
 
 	for(int j = 0; j < njoint; j++){
 		//vec3_t& Hw = *((vec3_t*)&(obj->R0_Hfk[i].Col(j).SubVector(3,3)(0)));
-		vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
-		vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->R0_Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& JL = *((vec3_t*)&(obj->J_L_qd.Col(j)(0)));
+		vec3_t Jw(obj->R0_Jfk[i](3,j), obj->R0_Jfk[i](4,j), obj->R0_Jfk[i](5,j));
+		vec3_t JL(obj->J_L_qd(0,j), obj->J_L_qd(1,j), obj->J_L_qd(2,j));
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Hw);
 		//dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw);
         dynamic_cast<C3Link*>(links[idx++])->SetCoef(Jw - Iinv*(q0*JL));
@@ -2378,8 +2388,10 @@ void WholebodyContactPosConT::CalcCoef(){
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jv = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(0,3)(0)));
-		vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jv = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(0,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		vec3_t Jv(obj->data.Jfk[i](0,j), obj->data.Jfk[i](1,j), obj->data.Jfk[i](2,j));
+		vec3_t Jw(obj->data.Jfk[i](3,j), obj->data.Jfk[i](4,j), obj->data.Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Ro.transpose()*R0*(Jv + Jw.cross(qi*r)));
 	}
 }
@@ -2393,7 +2405,8 @@ void WholebodyContactPosConR::CalcCoef(){
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+        vec3_t Jw(obj->data.Jfk[i](3,j), obj->data.Jfk[i](4,j), obj->data.Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Ro.transpose()*R0*Jw);
 	}
 }
@@ -2413,8 +2426,10 @@ void WholebodyContactVelConT::CalcCoef(){
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jv = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(0,3)(0)));
-		vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jv = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(0,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		vec3_t Jv(obj->data.Jfk[i](0,j), obj->data.Jfk[i](1,j), obj->data.Jfk[i](2,j));
+		vec3_t Jw(obj->data.Jfk[i](3,j), obj->data.Jfk[i](4,j), obj->data.Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Ro.transpose()*R0*(Jv + Jw.cross(qi*r)));
 	}
 }
@@ -2429,7 +2444,8 @@ void WholebodyContactVelConR::CalcCoef(){
 	int njoint = (int)obj->joints.size();
 	int i = obj->wb->ends[iend].ilink;
 	for(int j = 0; j < njoint; j++){
-		vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+		//vec3_t& Jw = *((vec3_t*)&(obj->data.Jfk[i].Col(j).SubVector(3,3)(0)));
+        vec3_t Jw(obj->data.Jfk[i](3,j), obj->data.Jfk[i](4,j), obj->data.Jfk[i](5,j));
 		dynamic_cast<C3Link*>(links[idx++])->SetCoef(Ro.transpose()*R0*Jw);
 	}
 }

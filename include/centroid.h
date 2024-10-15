@@ -594,7 +594,8 @@ struct CentroidEndContactCon : Constraint{
 	int              iend;
     int              iface;
     Centroid::Face*  face;
-	vec3_t           pe;
+	vec3_t           pe, pc, pc_abs;
+    quat_t           qe;
     vec3_t           pf;
     vec3_t           nf;
     

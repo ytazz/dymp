@@ -566,9 +566,9 @@ void CentroidKey::Prepare2(){
 		CentroidKey* k1 = this;
 
 		// find lift-off and landing phase
-		while(k0->prev && ((CentroidKey*)k0->prev)->data_des.ends[i].iface == -1)
+		while(k0->prev && ((CentroidKey*)k0->prev)->data_des.ends[i].state == Centroid::ContactState::Free)
 			k0 = (CentroidKey*)k0->prev;
-		while(k1->next && k1->data_des.ends[i].iface == -1)
+		while(k1->next && k1->data_des.ends[i].state == Centroid::ContactState::Free)
 			k1 = (CentroidKey*)k1->next;
 
 		CentroidData& d0 = k0->data;
@@ -1431,8 +1431,9 @@ void Centroid::Setup(){
 			}
 
 			// copy inertia info
-			key->data.I    = key->data_des.I;
-			key->data.Iinv = key->data_des.Iinv;
+			key->data.I      = key->data_des.I;
+			key->data.Iinv   = key->data_des.Iinv;
+            key->data.Llocal = key->data_des.Llocal;
 		}
 	}
 
@@ -1479,9 +1480,9 @@ void Centroid::Setup(){
 
 			if(k == 0){
 				end.var_pos_t->val = dend.pos_t;
-				end.var_vel_t->val = (dend.iface == -1 ? dend.vel_t : zero3);
+				end.var_vel_t->val = (dend.state != ContactState::Free ? zero3 : dend.vel_t);
 				end.var_pos_r->val = dend.pos_r;
-				end.var_vel_r->val = (dend.iface == -1 ? dend.vel_r : zero3);			
+				end.var_vel_r->val = (dend.state != ContactState::Free ? zero3 : dend.vel_r);
 			}
 
 			for(int j = 0; j < 3; j++){
@@ -1492,13 +1493,13 @@ void Centroid::Setup(){
 			}
 
 			end.con_des_pos_t->desired = dend.pos_t;
-			end.con_des_vel_t->desired = (dend.iface == -1 ? dend.vel_t : zero3);
+			end.con_des_vel_t->desired = (dend.state == ContactState::Surface ? zero3 : dend.vel_t);
 			end.con_des_pos_r->desired = dend.pos_r;
-			end.con_des_vel_r->desired = (dend.iface == -1 ? dend.vel_r : zero3);
+			end.con_des_vel_r->desired = (dend.state == ContactState::Surface ? zero3 : dend.vel_r);
 			end.con_des_pos_t->weight  = dend.pos_t_weight;
-			end.con_des_vel_t->weight  = (dend.iface == -1 ? dend.vel_t_weight : param.complWeight*one3);
+			end.con_des_vel_t->weight  = (dend.state == ContactState::Surface ? param.complWeight*one3 : dend.vel_t_weight);
 			end.con_des_pos_r->weight  = dend.pos_r_weight;
-			end.con_des_vel_r->weight  = (dend.iface == -1 ? dend.vel_r_weight : param.complWeight*one3);
+			end.con_des_vel_r->weight  = (dend.state == ContactState::Surface ? param.complWeight*one3 : dend.vel_r_weight);
 					
 			if(key->next){
 				if(param.endWrenchParametrization == EndWrenchParametrization::Stiffness){
@@ -1507,18 +1508,18 @@ void Centroid::Setup(){
 					key->ends[i].con_stiff_range->weight[0] = 0.1;
 					key->ends[i].con_stiff_range->barrier_margin = 0.00001;
 
-					end.con_des_stiff ->desired   = (dend.iface != -1 ? dend.stiff  : 0.0);
-					end.con_des_cmp[0]->desired   = (dend.iface != -1 ? dend.cmp[0] : 0.0);
-					end.con_des_cmp[1]->desired   = (dend.iface != -1 ? dend.cmp[1] : 0.0);
-					end.con_des_moment->desired   = (dend.iface != -1 ? dend.moment : zero3);
-					end.con_des_stiff ->weight[0] = (dend.iface != -1 ? dend.stiff_weight  : param.complWeight);
-					end.con_des_cmp[0]->weight[0] = (dend.iface != -1 ? dend.cmp_weight[0] : param.complWeight);
-					end.con_des_cmp[1]->weight[0] = (dend.iface != -1 ? dend.cmp_weight[1] : param.complWeight);
-					end.con_des_moment->weight    = (dend.iface != -1 ? dend.moment_weight : param.complWeight*one3);
+					end.con_des_stiff ->desired   = (dend.state == ContactState::Free ? 0.0   : dend.stiff );
+					end.con_des_cmp[0]->desired   = (dend.state == ContactState::Free ? 0.0   : dend.cmp[0]);
+					end.con_des_cmp[1]->desired   = (dend.state == ContactState::Free ? 0.0   : dend.cmp[1]);
+					end.con_des_moment->desired   = (dend.state == ContactState::Free ? zero3 : dend.moment);
+					end.con_des_stiff ->weight[0] = (dend.state == ContactState::Free ? param.complWeight      : dend.stiff_weight );
+					end.con_des_cmp[0]->weight[0] = (dend.state == ContactState::Free ? param.complWeight      : dend.cmp_weight[0]);
+					end.con_des_cmp[1]->weight[0] = (dend.state == ContactState::Free ? param.complWeight      : dend.cmp_weight[1]);
+					end.con_des_moment->weight    = (dend.state == ContactState::Free ? param.complWeight*one3 : dend.moment_weight);
 				}
 				else{
-					end.con_des_force ->weight = (dend.iface != -1 ? dend.force_weight  : param.complWeight*one3);
-					end.con_des_moment->weight = (dend.iface != -1 ? dend.moment_weight : param.complWeight*one3);
+					end.con_des_force ->weight = (dend.state == ContactState::Free ? param.complWeight*one3 : dend.force_weight );
+					end.con_des_moment->weight = (dend.state == ContactState::Free ? param.complWeight*one3 : dend.moment_weight);
 				}
 				key->ends[i].con_friction[0][0]->weight[0] = 0.1;
 				key->ends[i].con_friction[0][1]->weight[0] = 0.1;
@@ -1543,7 +1544,7 @@ void Centroid::Setup(){
 			}
 
 			for(int j = 0; j < nface; j++){
-				end.con_contact[j]->weight[0] = (dend.iface == j ? param.complWeight : 0.0);
+				end.con_contact[j]->weight[0] = (dend.state == ContactState::Free ? 0.0 : param.complWeight);
 			}
 		}
 	}
@@ -1734,16 +1735,15 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 				}
 				else{
 				    const real_t _2pi = 2.0*_pi;
-				    const real_t tmargin = 0.05;
-				    real_t tau = (d1.ends[i].t_land - d0.ends[i].t_lift) - 2.0*tmargin;
-				    real_t s   = std::min(std::max(0.0, (t - (d0.ends[i].t_lift + tmargin))/tau), 1.0);
-				    real_t ch  = (s - sin(_2pi*s)/_2pi);
-				    real_t chd = ((1.0 - cos(_2pi*s))/tau);
-				    real_t cv  = (1 - cos(_2pi*s))/2.0;
-				    real_t cvd = (_2pi*sin(_2pi*s)/(2.0*tau));
+				    real_t tau = (d1.ends[i].t_land - d0.ends[i].t_lift) - (param.swingLiftMargin + param.swingLandMargin);
+					real_t s   = std::min(std::max(0.0, (t - (d0.ends[i].t_lift + param.swingLiftMargin))/tau), 1.0);
+					real_t ch  = (s - sin(_2pi*s)/_2pi);
+					real_t chd = ((1.0 - cos(_2pi*s))/tau);
+					real_t cv  = (1 - cos(_2pi*s))/2.0;
+					real_t cvd = (_2pi*sin(_2pi*s)/(2.0*tau));
 
-				    real_t sw = param.swingHeight;
-				    vec3_t nx = d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift;
+				    real_t sw = param.swingHeight + param.swingSlope*(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift).norm();
+					vec3_t nx = d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift;
 				    vec3_t ny(0.0, 1.0, 0.0);
 				    vec3_t nz(0.0, 0.0, 1.0);
 				    real_t nxnorm = nx.norm();
@@ -2140,6 +2140,7 @@ CentroidEndContactCon::CentroidEndContactCon(Solver* solver, string _name, Centr
     face  = &obj->cen->faces[_iface];
 
 	AddR3Link(obj->ends[iend].var_pos_t);
+    AddR3Link(obj->ends[iend].var_pos_r);
 }
 
 CentroidEndFrictionCon::CentroidEndFrictionCon(Solver* solver, string _name, CentroidKey* _obj, int _iend, int _dir, int _side, real_t _scale):
@@ -2256,7 +2257,11 @@ void CentroidEndPosRangeCon::Prepare(){
 
 void CentroidEndContactCon::Prepare(){
     pe = obj->data.ends[iend].pos_t;
-    pf = vec3_t(pe.x(), pe.y(), 0.0);
+    qe = obj->data.ends[iend].pos_r;
+    pc = obj->data_des.ends[iend].pos_tc;
+    pc_abs = pe + qe*pc;
+
+    pf = vec3_t(pc_abs.x(), pc_abs.y(), 0.0);
     nf = face->normal;
 }
 
@@ -2444,33 +2449,33 @@ void CentroidLCon::CalcCoef(){
 void CentroidTimeCon::CalcCoef(){
 	Prepare();
 
-	((SLink*)links[0])->SetCoef( 1.0);
-	((SLink*)links[1])->SetCoef(-1.0);
-	((SLink*)links[2])->SetCoef(-1.0);
+	dynamic_cast<SLink*>(links[0])->SetCoef( 1.0);
+	dynamic_cast<SLink*>(links[1])->SetCoef(-1.0);
+	dynamic_cast<SLink*>(links[2])->SetCoef(-1.0);
 }
 
 void CentroidEndPosConT::CalcCoef(){
 	Prepare();
 
 	int i = 0;
-	((SLink *)links[i++])->SetCoef( 1.0);
-	((SLink *)links[i++])->SetCoef(-1.0);
-	((SLink *)links[i++])->SetCoef(-obj[0]->data.duration);
-	((C3Link*)links[i++])->SetCoef(-ve);
+	dynamic_cast<SLink *>(links[i++])->SetCoef( 1.0);
+	dynamic_cast<SLink *>(links[i++])->SetCoef(-1.0);
+	dynamic_cast<SLink *>(links[i++])->SetCoef(-obj[0]->data.duration);
+	dynamic_cast<C3Link*>(links[i++])->SetCoef(-ve);
 }
 
 void CentroidEndPosConR::CalcCoef(){
 	Prepare();
 
 	int i = 0;
-	((SLink *)links[i++])->SetCoef( 1.0);
-	((M3Link*)links[i++])->SetCoef(-R_omega);
-	((M3Link*)links[i++])->SetCoef(-A_omega*obj[0]->data.duration);
-	((C3Link*)links[i++])->SetCoef(-A_omega*we);
+	dynamic_cast<SLink *>(links[i++])->SetCoef( 1.0);
+	dynamic_cast<M3Link*>(links[i++])->SetCoef(-R_omega);
+	dynamic_cast<M3Link*>(links[i++])->SetCoef(-A_omega*obj[0]->data.duration);
+	dynamic_cast<C3Link*>(links[i++])->SetCoef(-A_omega*we);
 }
 
 void CentroidDurationRangeCon::CalcCoef(){
-	((SLink*)links[0])->SetCoef(dir);
+	dynamic_cast<SLink*>(links[0])->SetCoef(dir);
 }
 
 void CentroidEndPosRangeCon::CalcCoef(){
@@ -2486,15 +2491,16 @@ void CentroidEndPosRangeCon::CalcCoef(){
 	= (dir_abs % (pe - p))^T *Omega
 	*/
 
-	((R3Link*)links[0])->SetCoef(-eta_abs);
-	((R3Link*)links[1])->SetCoef( eta_abs.cross(pe - p));
-	((R3Link*)links[2])->SetCoef( eta_abs);
+	dynamic_cast<R3Link*>(links[0])->SetCoef(-eta_abs);
+	dynamic_cast<R3Link*>(links[1])->SetCoef( eta_abs.cross(pe - p));
+	dynamic_cast<R3Link*>(links[2])->SetCoef( eta_abs);
 }
 
 void CentroidEndContactCon::CalcCoef(){
 	Prepare();
 
-	((R3Link*)links[0])->SetCoef(nf);
+	dynamic_cast<R3Link*>(links[0])->SetCoef(nf);
+    dynamic_cast<R3Link*>(links[1])->SetCoef((qe*pc).cross(nf));
 }
 
 void CentroidEndFrictionCon::CalcCoef(){
@@ -2609,7 +2615,7 @@ void CentroidEndPosRangeCon::CalcDeviation(){
 }
 
 void CentroidEndContactCon::CalcDeviation(){
-	y[0] = nf.dot(pe - pf) - obj->cen->param.contactMargin;
+	y[0] = nf.dot(pc_abs - pf) - obj->cen->param.contactMargin;
 }
 
 void CentroidEndFrictionCon::CalcDeviation(){

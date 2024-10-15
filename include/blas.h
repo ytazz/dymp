@@ -65,13 +65,11 @@ inline void cross3_mat(const Eigen::Vector3d& r, Eigen::Matrix3d& y){
 }
 
 inline void  mat_copy (const Eigen::Matrix3d& m1, Matrix&& y){
-	const double* col0 = &m1(0,0);
-	double*       col1 = y.vh;
-	for(int j = 0; j < 3; j++, col0 += 3, col1 += y.l){
-		const double* v0 = col0;
-		double*       v1 = col1;
+	double* col1 = y.vh;
+	for(int j = 0; j < 3; j++, col1 += y.l){
+	    double* v1 = col1;
 		for(int i = 0; i < 3; i++){
-			*v1++ = (double)*v0++;
+			*v1++ = m1(i,j);
 		}
 	}
 }
@@ -81,21 +79,18 @@ inline void  mat_copy (const Eigen::Matrix3d& m1, Matrix& y){
 
 template<class T, int N>
 void vec_copy(const Eigen::Matrix<T, N, 1>& v, Vector&& y){
-	const T* v0 = &v[0];
 	double*  v1 = y.vh;
 	for(int i = 0; i < N; i++)
-		*v1++ = (double)*v0++;
+		*v1++ = v[i];
 }
 
 template<class T, int R, int C>
 void  mat_copy (const Eigen::Matrix<T, R, C>& m1, Matrix&& y){
-	const T* col0 = &m1(0,0);
 	double*  col1 = y .vh;
-	for(int j = 0; j < C; j++, col0 += R, col1 += y.l){
-		const double* v0 = col0;
-		double*       v1 = col1;
+	for(int j = 0; j < C; j++, col1 += y.l){
+		double* v1 = col1;
 		for(int i = 0; i < R; i++){
-			*v1++ = (double)*v0++;
+			*v1++ = m1(i,j);
 		}
 	}
 }
