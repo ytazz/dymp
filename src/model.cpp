@@ -1,8 +1,8 @@
-﻿#include <model.h>
-#include <world.h>
-#include <solver.h>
-#include <variable.h>
-#include <constraint.h>
+﻿#include <dymp/model.h>
+#include <dymp/world.h>
+#include <dymp/solver.h>
+#include <dymp/variable.h>
+#include <dymp/constraint.h>
 
 using namespace std;
 

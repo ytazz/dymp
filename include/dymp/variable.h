@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include <link.h>
-#include <id.h>
-#include <util.h>
+#include <dymp/link.h>
+#include <dymp/id.h>
+#include <dymp/util.h>
 
 namespace dymp{;
 

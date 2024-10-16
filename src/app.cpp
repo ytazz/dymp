@@ -1,10 +1,10 @@
-#include <app.h>
-#include <world.h>
-#include <solver.h>
-#include <model.h>
-#include <variable.h>
-#include <constraint.h>
-#include <timer.h>
+#include <dymp/app.h>
+#include <dymp/world.h>
+#include <dymp/solver.h>
+#include <dymp/model.h>
+#include <dymp/variable.h>
+#include <dymp/constraint.h>
+#include <dymp/timer.h>
 
 namespace dymp{;
 

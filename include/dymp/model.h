@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include <types.h>
-#include <canvas.h>
+#include <dymp/types.h>
+#include <dymp/canvas.h>
 
 namespace dymp{;
 

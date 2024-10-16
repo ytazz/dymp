@@ -65,22 +65,22 @@ set(DYMP_SOURCES
   src/world.cpp
   )
 set(DYMP_HEADERS
-  include/blas.h
-  include/canvas.h
-  include/centroid.h
-  include/constraint.h
-  include/dymp.h
-  include/id.h
-  include/link.h
-  include/model.h
-  include/rollpitchyaw.h
-  include/solver.h
-  include/timer.h
-  include/types.h
-  include/util.h
-  include/variable.h
-  include/wholebody.h
-  include/world.h
+  include/dymp/blas.h
+  include/dymp/canvas.h
+  include/dymp/centroid.h
+  include/dymp/constraint.h
+  include/dymp/dymp.h
+  include/dymp/id.h
+  include/dymp/link.h
+  include/dymp/model.h
+  include/dymp/rollpitchyaw.h
+  include/dymp/solver.h
+  include/dymp/timer.h
+  include/dymp/types.h
+  include/dymp/util.h
+  include/dymp/variable.h
+  include/dymp/wholebody.h
+  include/dymp/world.h
   )
 
 if(DYMP_BUILD_SAMPLE)

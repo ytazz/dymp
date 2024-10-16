@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include <types.h>
-#include <blas.h>
+#include <dymp/types.h>
+#include <dymp/blas.h>
 
 #include <memory>
 

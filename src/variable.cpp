@@ -1,5 +1,5 @@
-﻿#include <variable.h>
-#include <solver.h>
+﻿#include <dymp/variable.h>
+#include <dymp/solver.h>
 
 namespace dymp{;
 

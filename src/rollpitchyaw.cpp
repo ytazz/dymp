@@ -1,5 +1,5 @@
-#include <rollpitchyaw.h>
-#include <util.h>
+#include <dymp/rollpitchyaw.h>
+#include <dymp/util.h>
 
 using namespace Eigen;
 

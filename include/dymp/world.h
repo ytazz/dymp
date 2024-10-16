@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include <types.h>
-#include <timer.h>
-#include <canvas.h>
+#include <dymp/types.h>
+#include <dymp/timer.h>
+#include <dymp/canvas.h>
 
 namespace dymp{;
 

@@ -1,6 +1,6 @@
-﻿#include <canvas.h>
-#include <util.h>
-#include <model.h>
+﻿#include <dymp/canvas.h>
+#include <dymp/util.h>
+#include <dymp/model.h>
 
 #include <GL/glut.h>
 

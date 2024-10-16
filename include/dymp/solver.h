@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-#include <types.h>
-#include <id.h>
-#include <blas.h>
-#include <timer.h>
+#include <dymp/types.h>
+#include <dymp/id.h>
+#include <dymp/blas.h>
+#include <dymp/timer.h>
 
 namespace dymp{;
 

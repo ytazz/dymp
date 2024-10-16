@@ -1,7 +1,7 @@
-﻿#include <wholebody.h>
-#include <world.h>
-#include <solver.h>
-#include <util.h>
+﻿#include <dymp/wholebody.h>
+#include <dymp/world.h>
+#include <dymp/solver.h>
+#include <dymp/util.h>
 
 #include <omp.h>
 

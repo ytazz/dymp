@@ -1,7 +1,7 @@
-﻿#include <constraint.h>
-#include <variable.h>
-#include <solver.h>
-#include <link.h>
+﻿#include <dymp/constraint.h>
+#include <dymp/variable.h>
+#include <dymp/solver.h>
+#include <dymp/link.h>
 
 namespace dymp{;
 

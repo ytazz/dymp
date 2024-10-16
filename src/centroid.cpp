@@ -1,8 +1,8 @@
-﻿#include <centroid.h>
-#include <world.h>
-#include <solver.h>
-#include <util.h>
-#include <rollpitchyaw.h>
+﻿#include <dymp/centroid.h>
+#include <dymp/world.h>
+#include <dymp/solver.h>
+#include <dymp/util.h>
+#include <dymp/rollpitchyaw.h>
 
 namespace dymp{;
 

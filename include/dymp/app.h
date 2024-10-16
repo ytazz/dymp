@@ -1,7 +1,7 @@
 #pragma once
 
-#include <types.h>
-#include <world.h>
+#include <dymp/types.h>
+#include <dymp/world.h>
 
 #include <GLFW/glfw3.h>
 

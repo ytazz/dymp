@@ -1,11 +1,11 @@
 ﻿#pragma once
 
-#include <model.h>
-#include <variable.h>
-#include <constraint.h>
-#include <blas.h>
-#include <timer.h>
-#include <util.h>
+#include <dymp/model.h>
+#include <dymp/variable.h>
+#include <dymp/constraint.h>
+#include <dymp/blas.h>
+#include <dymp/timer.h>
+#include <dymp/util.h>
 
 namespace dymp{;
 

@@ -1,6 +1,6 @@
-﻿#include <solver.h>
-#include <variable.h>
-#include <constraint.h>
+﻿#include <dymp/solver.h>
+#include <dymp/variable.h>
+#include <dymp/constraint.h>
 
 #define USE_MKL
 

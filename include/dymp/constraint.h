@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include <link.h>
-#include <blas.h>
-#include <id.h>
+#include <dymp/link.h>
+#include <dymp/blas.h>
+#include <dymp/id.h>
 
 #include <map>
 

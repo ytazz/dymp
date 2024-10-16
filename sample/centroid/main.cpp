@@ -1,10 +1,10 @@
-#include <app.h>
-#include <centroid.h>
-#include <solver.h>
-#include <util.h>
-#include <rollpitchyaw.h>
+#include <dymp/app.h>
+#include <dymp/centroid.h>
+#include <dymp/solver.h>
+#include <dymp/util.h>
+#include <dymp/rollpitchyaw.h>
 
-#include <wholebody.h>
+#include <dymp/wholebody.h>
 
 /**
  centroidal trajectory planning with unscheduled contact
