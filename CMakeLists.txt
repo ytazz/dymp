@@ -90,7 +90,7 @@ if(DYMP_BUILD_SAMPLE)
 		)
 	set(DYMP_HEADERS
 		${DYMP_HEADERS}
-		include/app.h
+		include/dymp/app.h
 		)	
 endif()
 
