@@ -70,6 +70,15 @@ struct WholebodyData{
 		End();
 	};
 
+    struct Joint{
+        real_t q, qd, qdd, qddd, tau;
+	    real_t q_weight, qd_weight, qdd_weight, qddd_weight;
+	    real_t q_min, q_max;
+	    real_t qd_min, qd_max;
+	    real_t qdd_min, qdd_max;
+        real_t q_range_weight, qd_range_weight, qdd_range_weight;
+    };
+
 	struct Centroid{
 		vec3_t pos_t;   ///< com position
 		quat_t pos_r;
@@ -94,13 +103,8 @@ struct WholebodyData{
 	Centroid           centroid;
 	std::vector<End>   ends;
 	std::vector<Link>  links;
+    std::vector<Joint> joints;
 	
-	vvec_t q, qd, qdd, qddd, tau;
-	vvec_t q_weight, qd_weight, qdd_weight, qddd_weight;
-	vvec_t q_min, q_max;
-	vvec_t qd_min, qd_max;
-	vvec_t qdd_min, qdd_max;
-
 	Matrix          Jcom, Hcom;
 	std::vector<Matrix>  Jfk, Hfk;
 	

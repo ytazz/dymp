@@ -68,44 +68,33 @@ void WholebodyData::Init(Wholebody* wb){
 	int nend   = (int)wb->ends  .size();
 	int njoint = (int)wb->joints.size();
 
-	links.resize(nlink );
-	ends .resize(nend  );
-	q    .resize(njoint);
-	qd   .resize(njoint);
-	qdd  .resize(njoint);
-	qddd .resize(njoint);
-	tau  .resize(njoint);
-
-	q_weight   .resize(njoint);
-	qd_weight  .resize(njoint);
-	qdd_weight .resize(njoint);
-	qddd_weight.resize(njoint);
-
-	q_min  .resize(njoint);
-	q_max  .resize(njoint);
-	qd_min .resize(njoint);
-	qd_max .resize(njoint);
-	qdd_min.resize(njoint);
-	qdd_max.resize(njoint);
+	links .resize(nlink );
+	ends  .resize(nend  );
+    joints.resize(njoint);
 
 	for(int j = 0; j < njoint; j++){
-		q   [j] = 0.0;
-		qd  [j] = 0.0;
-		qdd [j] = 0.0;
-		qddd[j] = 0.0;
-		tau [j] = 0.0;
+        Joint& jnt = joints[j];
+		jnt.q    = 0.0;
+		jnt.qd   = 0.0;
+		jnt.qdd  = 0.0;
+		jnt.qddd = 0.0;
+		jnt.tau  = 0.0;
 
-		q_weight   [j] = 1.0;
-		qd_weight  [j] = 1.0;
-		qdd_weight [j] = 1.0;
-		qddd_weight[j] = 1.0;
+		jnt.q_weight    = 1.0;
+		jnt.qd_weight   = 1.0;
+		jnt.qdd_weight  = 1.0;
+		jnt.qddd_weight = 1.0;
 
-		q_min  [j] = -inf;
-		q_max  [j] =  inf;
-		qd_min [j] = -inf;
-		qd_max [j] =  inf;
-		qdd_min[j] = -inf;
-		qdd_max[j] =  inf;
+		jnt.q_min   = -inf;
+		jnt.q_max   =  inf;
+		jnt.qd_min  = -inf;
+		jnt.qd_max  =  inf;
+		jnt.qdd_min = -inf;
+		jnt.qdd_max =  inf;
+
+        jnt.q_range_weight   = 10.0;
+        jnt.qd_range_weight  = 10.0;
+        jnt.qdd_range_weight = 10.0;
 	}
 }
 
@@ -127,18 +116,7 @@ void WholebodyData::CopyVars(WholebodyData& d){
 	d.centroid = centroid;
 	d.ends     = ends;
 	d.links    = links;
-	d.q        = q;
-	d.qd       = qd;
-	d.qdd      = qdd;
-	d.qddd     = qddd;
-	d.tau      = tau;
-
-	d.q_min   = q_min;
-	d.q_max   = q_max;
-	d.qd_min  = qd_min;
-	d.qd_max  = qd_max;
-	d.qdd_min = qdd_min;
-	d.qdd_max = qdd_max;
+    d.joints   = joints;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -452,15 +430,17 @@ void WholebodyKey::Prepare() {
     data.centroid.L_abs = centroid.var_L->val;
 
 	for(int i = 0; i < njoint; i++){
-		data.q   [i] = joints[i].var_q   ->val;
-		data.qd  [i] = joints[i].var_qd  ->val;
-		data.qdd [i] = joints[i].var_qdd ->val;
-		data.qddd[i] = joints[i].var_qddd ->val;
+        Joint& jnt = joints[i];
+        WholebodyData::Joint& djnt = data.joints[i];
+		djnt.q    = jnt.var_q   ->val;
+		djnt.qd   = jnt.var_qd  ->val;
+		djnt.qdd  = jnt.var_qdd ->val;
+		djnt.qddd = jnt.var_qddd ->val;
 
 		// calc joint acc by difference
 		if(next && (wb->param.inputMode == Wholebody::InputMode::Velocity)){
 			auto key1 = (WholebodyKey*)next;
-			data.qdd[i] = (key1->joints[i].var_qd->val - joints[i].var_qd->val)/(key1->tick->time - tick->time);
+			djnt.qdd = (key1->joints[i].var_qd->val - jnt.var_qd->val)/(key1->tick->time - tick->time);
 		}
 	}
 	
@@ -566,7 +546,7 @@ void WholebodyKey::Finish(){
 		Joint& jnt = joints[i];
 
 		// enforce joint range
-		jnt.var_q->val = std::min(std::max(data_des.q_min[i], jnt.var_q->val), data_des.q_max[i]);
+		jnt.var_q->val = std::min(std::max(data_des.joints[i].q_min, jnt.var_q->val), data_des.joints[i].q_max);
 		//jnt.var_qdd->val = std::min(std::max(data_des.qdd_min[i], jnt.var_qdd->val), data_des.qdd_max[i]);
 	}
 	for(int i = 0; i < nend; i++){
@@ -714,11 +694,12 @@ void Wholebody::Reset(bool reset_all){
 
 		for(int i = 0; i < njoint; i++){
 			WholebodyKey::Joint& jnt = key->joints[i];
+            WholebodyData::Joint& djnt = d.joints[i];
 
-			jnt.var_q   ->val = d.q   [i];
-			jnt.var_qd  ->val = d.qd  [i];
-			jnt.var_qdd ->val = d.qdd [i];
-			jnt.var_qddd->val = d.qddd[i];
+			jnt.var_q   ->val = djnt.q   ;
+			jnt.var_qd  ->val = djnt.qd  ;
+			jnt.var_qdd ->val = djnt.qdd ;
+			jnt.var_qddd->val = djnt.qddd;
 		}
 
 		for(int i = 0; i < nend; i++){
@@ -808,11 +789,12 @@ void Wholebody::Setup(){
 			
 			for(int i = 0; i < njoint; i++){
 				WholebodyKey::Joint& jnt = key->joints[i];
+                WholebodyData::Joint& djnt = d.joints[i];
 
-				jnt.var_q   ->val = d.q   [i];
-				jnt.var_qd  ->val = d.qd  [i];
-				jnt.var_qdd ->val = d.qdd [i];
-				jnt.var_qddd->val = d.qddd[i];
+				jnt.var_q   ->val = djnt.q   ;
+				jnt.var_qd  ->val = djnt.qd  ;
+				jnt.var_qdd ->val = djnt.qdd ;
+				jnt.var_qddd->val = djnt.qddd;
 			}
 
 			for(int i = 0; i < nend; i++){
@@ -843,28 +825,29 @@ void Wholebody::Setup(){
 		//key->centroid.con_des_acc_r->weight  = d.centroid.acc_r_weight;
 
 		for(int i = 0; i < njoint; i++){
-			WholebodyKey::Joint& jnt = key->joints[i];
+			WholebodyKey::Joint& jnt   = key->joints[i];
+            WholebodyData::Joint& djnt = d.joints[i];
 			
-			jnt.con_des_q   ->desired = d.q   [i];
-			jnt.con_des_qd  ->desired = d.qd  [i];
-			jnt.con_des_qdd ->desired = d.qdd [i];
-			jnt.con_des_qddd->desired = d.qddd[i];
+			jnt.con_des_q   ->desired = djnt.q   ;
+			jnt.con_des_qd  ->desired = djnt.qd  ;
+			jnt.con_des_qdd ->desired = djnt.qdd ;
+			jnt.con_des_qddd->desired = djnt.qddd;
 
-			jnt.con_des_q   ->weight[0] = d.q_weight   [i];
-			jnt.con_des_qd  ->weight[0] = d.qd_weight  [i];
-			jnt.con_des_qdd ->weight[0] = d.qdd_weight [i];
-			jnt.con_des_qddd->weight[0] = d.qddd_weight[i];
+			jnt.con_des_q   ->weight[0] = djnt.q_weight   ;
+			jnt.con_des_qd  ->weight[0] = djnt.qd_weight  ;
+			jnt.con_des_qdd ->weight[0] = djnt.qdd_weight ;
+			jnt.con_des_qddd->weight[0] = djnt.qddd_weight;
 			
-			jnt.con_range_q  ->_min = d.q_min  [i];
-			jnt.con_range_q  ->_max = d.q_max  [i];
-			jnt.con_range_qd ->_min = d.qd_min [i];
-			jnt.con_range_qd ->_max = d.qd_max [i];
-			jnt.con_range_qdd->_min = d.qdd_min[i];
-			jnt.con_range_qdd->_max = d.qdd_max[i];
+			jnt.con_range_q  ->_min = djnt.q_min  ;
+			jnt.con_range_q  ->_max = djnt.q_max  ;
+			jnt.con_range_qd ->_min = djnt.qd_min ;
+			jnt.con_range_qd ->_max = djnt.qd_max ;
+			jnt.con_range_qdd->_min = djnt.qdd_min;
+			jnt.con_range_qdd->_max = djnt.qdd_max;
 
-			jnt.con_range_q  ->weight[0] = 0.0;
-			jnt.con_range_qd ->weight[0] = 0.0;
-			jnt.con_range_qdd->weight[0] = 0.0;
+			jnt.con_range_q  ->weight[0] = djnt.q_range_weight  ;
+			jnt.con_range_qd ->weight[0] = djnt.qd_range_weight ;
+			jnt.con_range_qdd->weight[0] = djnt.qdd_range_weight;
 		}
 
 		for(int i = 0; i < nend; i++){
@@ -1015,7 +998,7 @@ void Wholebody::CalcFK(WholebodyData& d){
 		WholebodyData::Link& dlnk  = d.links[i ];
 		WholebodyData::Link& dlnkp = d.links[ip];
 
-	    dlnk.pos_r = dlnkp.pos_r*Eigen::AngleAxisd(d.q[links[i].ijoint], links[i].axis);
+	    dlnk.pos_r = dlnkp.pos_r*Eigen::AngleAxisd(d.joints[links[i].ijoint].q, links[i].axis);
 		dlnk.pos_r.normalize();
 		dlnk.pos_t = dlnkp.pos_t + dlnkp.pos_r*(links[i].trn - links[ip].center) + dlnk.pos_r*links[i].center;
 	}
@@ -1078,7 +1061,7 @@ void Wholebody::CalcVelocity(WholebodyData& d){
 		vec3_t ti   = dlnkp.pos_r*links[i ].trn;
 		vec3_t etai = dlnkp.pos_r*links[i ].axis;
 
-		dlnk.vel_r = dlnkp.vel_r + etai*d.qd[links[i].ijoint];
+		dlnk.vel_r = dlnkp.vel_r + etai*d.joints[links[i].ijoint].qd;
 		dlnk.vel_t = dlnkp.vel_t + dlnkp.vel_r.cross(ti - cp) + dlnk.vel_r.cross(ci);
 	}
 
@@ -1130,7 +1113,7 @@ void Wholebody::CalcAcceleration(WholebodyData& d){
 		vec3_t ti   = dlnkp.pos_r*links[i ].trn;
 		vec3_t etai = dlnkp.pos_r*links[i ].axis;
 			
-		dlnk.acc_r = dlnkp.acc_r + etai*d.qdd[links[i].ijoint] + dlnkp.vel_r.cross(etai*d.qd[links[i].ijoint]);
+		dlnk.acc_r = dlnkp.acc_r + etai*d.joints[links[i].ijoint].qdd + dlnkp.vel_r.cross(etai*d.joints[links[i].ijoint].qd);
 		dlnk.acc_t = dlnkp.acc_t + dlnkp.acc_r.cross(ti - cp) + dlnk.acc_r.cross(ci)
 			       + dlnkp.vel_r.cross(dlnkp.vel_r.cross(ti - cp)) + dlnk.vel_r.cross(dlnk.vel_r.cross(ci));
 	}
@@ -1242,9 +1225,9 @@ void Wholebody::CalcJacobian(WholebodyData& d){
 		Matrix tmp1; tmp1.Allocate(3,3);
 		Matrix tmp2; tmp2.Allocate(3,3);
 		Matrix tmp3; tmp3.Allocate(3,3);
-		mat_copy((etax*d.qd[iq])*cix + (tix - cix)*wix.transpose(), tmp1);
-		mat_copy((etax*d.qd[iq]), tmp2);
-		mat_copy(cix*((etax*d.qd[iq]) + wix).transpose(), tmp3);
+		mat_copy((etax*d.joints[iq].qd)*cix + (tix - cix)*wix.transpose(), tmp1);
+		mat_copy((etax*d.joints[iq].qd), tmp2);
+		mat_copy(cix*((etax*d.joints[iq].qd) + wix).transpose(), tmp3);
 
 		// J
 		mat_copy(d.Jfk[ip].SubMatrix(0,0,3,njoint), d.Jfk[i].SubMatrix(0,0,3,njoint));
@@ -1426,11 +1409,11 @@ void Wholebody::CalcForce(WholebodyData & d){
 		// calc joint torque
 		int iq = links[i].ijoint;
 		if(iq != -1){
-			dlnk.force_r_par += (qj*links[i].axis)*(joints[iq].rotor_inertia*d.qdd[iq]);
+			dlnk.force_r_par += (qj*links[i].axis)*(joints[iq].rotor_inertia*d.joints[iq].qdd);
 
 			// moment acting on joint pivot
 			vec3_t mj = dlnk.force_r_par + (qj*links[i].center).cross(dlnk.force_t_par);
-			d.tau[iq] = (qj*links[i].axis).dot(mj);// + joints[iq].rotor_inertia*d.qdd[iq];
+			d.joints[iq].tau = (qj*links[i].axis).dot(mj);// + joints[iq].rotor_inertia*d.qdd[iq];
 		}
 		if(i == 0){
 			// parent force of base link must be zero

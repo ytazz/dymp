@@ -3,8 +3,8 @@
 ## Abstract
 
 dymp is a C++ library for trajectory optimization (TO) of legged robots.
-While dymp provides core functionality for TO, the related library [dymp_mpc](https://github.com/ytazz/dymp_mpc)
-provides implementation of model predictive controllers that runs on Choreonoid.
+While dymp provides core functionality for TO, another library [dymp_mpc](https://github.com/ytazz/dymp_mpc)
+provides implementation of model predictive controllers that run on Choreonoid.
 
 ## Building
 
