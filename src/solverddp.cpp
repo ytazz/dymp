@@ -422,7 +422,12 @@ void Solver::CalcCostDDP(){
 			    }
 			    if( subcost->con->type == Constraint::Type::InequalityBarrier ){
 				    // assume n = 1
-				    L[k] += -square(subcost->con->weight[0])*log(std::min(std::max(subcost->con->barrier_margin, cost[k]->y(subcost->index)), 1.0));
+                    real_t yi = cost[k]->y(subcost->index);
+                    real_t mi = subcost->con->barrier_margin;
+                    real_t wi = subcost->con->weight[0];
+                    if(yi >= 0.0)
+                         L[k] += -square(wi)*log(yi + mi);
+                    else L[k] += -square(wi)*((1.0/(2*mi*mi))*square(yi - mi) - log(mi) - (1.0/2.0));
 			    }
             }
 		}
@@ -466,9 +471,12 @@ void Solver::CalcCostGradientDDP(){
 			// dynamic weight scaling
 			real_t tmp;
 			if( subcost->con->type == Constraint::Type::InequalityBarrier ){
-				if(subcost->con->barrier_margin < cost[k]->y(subcost->index) && cost[k]->y(subcost->index) < 1.0)
-					 tmp = 1.0/cost[k]->y(subcost->index);
-				else tmp = 0.0;
+                real_t yi = cost[k]->y(subcost->index);
+                real_t mi = subcost->con->barrier_margin;
+
+				if(yi >= 0.0)
+					 tmp = 1.0/(yi + mi);
+				else tmp = 1.0/mi;
 			}
 			else tmp = 1.0;
 
@@ -480,7 +488,12 @@ void Solver::CalcCostGradientDDP(){
 				}
 			}
 			if( subcost->con->type == Constraint::Type::InequalityBarrier ){
-				cost[k]->b(subcost->index) = -subcost->con->weight[0];
+                real_t yi = cost[k]->y(subcost->index);
+                real_t mi = subcost->con->barrier_margin;
+
+                if(yi >= 0)
+				     cost[k]->b(subcost->index) = -subcost->con->weight[0];
+                else cost[k]->b(subcost->index) =  subcost->con->weight[0]*(1/mi)*(yi - mi);
 			}
 
 			// calc Ax

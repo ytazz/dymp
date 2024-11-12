@@ -85,12 +85,12 @@ void WholebodyData::Init(Wholebody* wb){
 		jnt.qdd_weight  = 1.0;
 		jnt.qddd_weight = 1.0;
 
-		jnt.q_min   = -inf;
-		jnt.q_max   =  inf;
-		jnt.qd_min  = -inf;
-		jnt.qd_max  =  inf;
-		jnt.qdd_min = -inf;
-		jnt.qdd_max =  inf;
+		//jnt.q_min   = -inf;
+		//jnt.q_max   =  inf;
+		//jnt.qd_min  = -inf;
+		//jnt.qd_max  =  inf;
+		//jnt.qdd_min = -inf;
+		//jnt.qdd_max =  inf;
 
         jnt.q_range_weight   = 10.0;
         jnt.qd_range_weight  = 10.0;
@@ -546,7 +546,8 @@ void WholebodyKey::Finish(){
 		Joint& jnt = joints[i];
 
 		// enforce joint range
-		jnt.var_q->val = std::min(std::max(data_des.joints[i].q_min, jnt.var_q->val), data_des.joints[i].q_max);
+		//jnt.var_q->val = std::min(std::max(data_des.joints[i].q_min, jnt.var_q->val), data_des.joints[i].q_max);
+        jnt.var_q->val = std::min(std::max(wb->joints[i].pos_range[0], jnt.var_q->val), wb->joints[i].pos_range[1]);
 		//jnt.var_qdd->val = std::min(std::max(data_des.qdd_min[i], jnt.var_qdd->val), data_des.qdd_max[i]);
 	}
 	for(int i = 0; i < nend; i++){
@@ -554,6 +555,7 @@ void WholebodyKey::Finish(){
 		WholebodyData::End& dend_des = data_des.ends[i];
 		WholebodyData::End& dend     = data    .ends[i];
 
+        /*
 		// enforce contact force constraint
         vec3_t flocal = dend.pos_r.conjugate()*end.var_force_t->val;
         vec3_t mlocal = dend.pos_r.conjugate()*end.var_force_r->val;
@@ -566,6 +568,7 @@ void WholebodyKey::Finish(){
         mlocal.z() = std::min(std::max( dend_des.cop_min.z()*fz, mlocal.z()),  dend_des.cop_max.z()*fz);
         end.var_force_t->val = dend.pos_r*flocal;
         end.var_force_r->val = dend.pos_r*mlocal;
+        */
 	}
 }
 
@@ -602,6 +605,12 @@ Wholebody::Link::Link(real_t _mass, const vec3_t& _inertia, const vec3_t& _cente
 
 Wholebody::Joint::Joint(real_t Ir){
 	rotor_inertia = Ir;
+    pos_range[0] = -inf;
+    pos_range[1] =  inf;
+    vel_range[0] = -inf;
+    vel_range[1] =  inf;
+    acc_range[0] = -inf;
+    acc_range[1] =  inf;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -838,12 +847,12 @@ void Wholebody::Setup(){
 			jnt.con_des_qdd ->weight[0] = djnt.qdd_weight ;
 			jnt.con_des_qddd->weight[0] = djnt.qddd_weight;
 			
-			jnt.con_range_q  ->_min = djnt.q_min  ;
-			jnt.con_range_q  ->_max = djnt.q_max  ;
-			jnt.con_range_qd ->_min = djnt.qd_min ;
-			jnt.con_range_qd ->_max = djnt.qd_max ;
-			jnt.con_range_qdd->_min = djnt.qdd_min;
-			jnt.con_range_qdd->_max = djnt.qdd_max;
+			jnt.con_range_q  ->_min = joints[i].pos_range[0];//djnt.q_min  ;
+			jnt.con_range_q  ->_max = joints[i].pos_range[1];//djnt.q_max  ;
+			jnt.con_range_qd ->_min = joints[i].vel_range[0];//djnt.qd_min ;
+			jnt.con_range_qd ->_max = joints[i].vel_range[1];//djnt.qd_max ;
+			jnt.con_range_qdd->_min = joints[i].acc_range[0];//djnt.qdd_min;
+			jnt.con_range_qdd->_max = joints[i].acc_range[1];//djnt.qdd_max;
 
 			jnt.con_range_q  ->weight[0] = djnt.q_range_weight  ;
 			jnt.con_range_qd ->weight[0] = djnt.qd_range_weight ;
@@ -896,21 +905,21 @@ void Wholebody::Setup(){
 			end.con_des_force_r->weight = dend.force_r_weight;
 
 			end.con_force_normal->active  = (dend.state != ContactState::Free);
-			end.con_force_normal->weight[0] = 5.0;
-			end.con_force_normal->barrier_margin = 0.00001;
+			end.con_force_normal->weight[0] = 0.1;
+			end.con_force_normal->barrier_margin = 1.0e-6;
 
 			end.con_force_friction[0][0]->active = (dend.state != ContactState::Free);
 			end.con_force_friction[0][1]->active = (dend.state != ContactState::Free);
 			end.con_force_friction[1][0]->active = (dend.state != ContactState::Free);
 			end.con_force_friction[1][1]->active = (dend.state != ContactState::Free);
-			end.con_force_friction[0][0]->weight[0] = 5.0;
-			end.con_force_friction[0][1]->weight[0] = 5.0;
-			end.con_force_friction[1][0]->weight[0] = 5.0;
-			end.con_force_friction[1][1]->weight[0] = 5.0;
-			end.con_force_friction[0][0]->barrier_margin = 0.00001;
-			end.con_force_friction[0][1]->barrier_margin = 0.00001;
-			end.con_force_friction[1][0]->barrier_margin = 0.00001;
-			end.con_force_friction[1][1]->barrier_margin = 0.00001;
+			end.con_force_friction[0][0]->weight[0] = 0.1;
+			end.con_force_friction[0][1]->weight[0] = 0.1;
+			end.con_force_friction[1][0]->weight[0] = 0.1;
+			end.con_force_friction[1][1]->weight[0] = 0.1;
+			end.con_force_friction[0][0]->barrier_margin = 1.0e-6;
+			end.con_force_friction[0][1]->barrier_margin = 1.0e-6;
+			end.con_force_friction[1][0]->barrier_margin = 1.0e-6;
+			end.con_force_friction[1][1]->barrier_margin = 1.0e-6;
 				
 			end.con_moment[0][0]->active = (dend.state != ContactState::Free);
 			end.con_moment[0][1]->active = (dend.state != ContactState::Free);
@@ -918,18 +927,18 @@ void Wholebody::Setup(){
 			end.con_moment[1][1]->active = (dend.state != ContactState::Free);
 			end.con_moment[2][0]->active = (dend.state != ContactState::Free);
 			end.con_moment[2][1]->active = (dend.state != ContactState::Free);
-			end.con_moment[0][0]->weight[0] = 5.0;
-			end.con_moment[0][1]->weight[0] = 5.0;
-			end.con_moment[1][0]->weight[0] = 5.0;
-			end.con_moment[1][1]->weight[0] = 5.0;
-			end.con_moment[2][0]->weight[0] = 5.0;
-			end.con_moment[2][1]->weight[0] = 5.0;
-			end.con_moment[0][0]->barrier_margin = 0.00001;
-			end.con_moment[0][1]->barrier_margin = 0.00001;
-			end.con_moment[1][0]->barrier_margin = 0.00001;
-			end.con_moment[1][1]->barrier_margin = 0.00001;
-			end.con_moment[2][0]->barrier_margin = 0.00001;
-			end.con_moment[2][1]->barrier_margin = 0.00001;
+			end.con_moment[0][0]->weight[0] = 0.1;
+			end.con_moment[0][1]->weight[0] = 0.1;
+			end.con_moment[1][0]->weight[0] = 0.1;
+			end.con_moment[1][1]->weight[0] = 0.1;
+			end.con_moment[2][0]->weight[0] = 0.1;
+			end.con_moment[2][1]->weight[0] = 0.1;
+			end.con_moment[0][0]->barrier_margin = 1.0e-6;
+			end.con_moment[0][1]->barrier_margin = 1.0e-6;
+			end.con_moment[1][0]->barrier_margin = 1.0e-6;
+			end.con_moment[1][1]->barrier_margin = 1.0e-6;
+			end.con_moment[2][0]->barrier_margin = 1.0e-6;
+			end.con_moment[2][1]->barrier_margin = 1.0e-6;
 		}
 	}
 	/*
@@ -2081,8 +2090,8 @@ void WholebodyMomentCon::Prepare(){
 	etay = ny.dot(eta);
 	etaz = nz.dot(eta);
 	fz   = std::max(nz.dot(f), 0.0);
-	cmin = dend_des.cop_min;
-	cmax = dend_des.cop_max;
+	cmin = dend_des.cop_min;// + 0.01*one3;
+	cmax = dend_des.cop_max;// - 0.01*one3;
 
 	if(dir == 0){
 		df   = (side == 0 ? -cmin.x() : cmax.x())*nz;

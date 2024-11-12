@@ -73,9 +73,9 @@ struct WholebodyData{
     struct Joint{
         real_t q, qd, qdd, qddd, tau;
 	    real_t q_weight, qd_weight, qdd_weight, qddd_weight;
-	    real_t q_min, q_max;
-	    real_t qd_min, qd_max;
-	    real_t qdd_min, qdd_max;
+	    //real_t q_min, q_max;
+	    //real_t qd_min, qd_max;
+	    //real_t qdd_min, qdd_max;
         real_t q_range_weight, qd_range_weight, qdd_range_weight;
     };
 
@@ -272,6 +272,9 @@ public:
 
 	struct Joint{
 		real_t		rotor_inertia;
+        vec2_t      pos_range;
+        vec2_t      vel_range;
+        vec2_t      acc_range;
 
 		Joint(real_t Ir = 0.0);
 	};

@@ -586,16 +586,29 @@ void CentroidKey::Prepare2(){
 		data.ends[i].pos_r_land_local = d1.pos_r.conjugate()*d1.ends[i].pos_r;
 	}
     for(int i = 0; i < nend; i++){
-		CentroidKey* km1 = (prev && ((CentroidKey*)prev)->data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)prev : this;
-		CentroidKey* k1  = (next && data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)next : this;
+		//CentroidKey* km1 = (prev && ((CentroidKey*)prev)->data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)prev : this;
+		//CentroidKey* k1  = (next && data_des.ends[i].state == Centroid::ContactState::Free) ? (CentroidKey*)next : this;
+        CentroidKey* km1 = (prev ? (CentroidKey*)prev : this);
+		CentroidKey* k1  = (next ? (CentroidKey*)next : this);
 
 		CentroidData& dm1 = km1->data;
 		CentroidData& d1  = k1 ->data;
 
-		vec3_t anglem1 = ToRollPitchYaw(dm1.ends[i].pos_r);
-		vec3_t angle1  = ToRollPitchYaw(d1 .ends[i].pos_r);
-		data.ends[i].vel_t_ave = (d1.ends[i].pos_t - dm1.ends[i].pos_t)/(d1.time - dm1.time);
-		data.ends[i].vel_r_ave = (angle1 - anglem1)/(d1.time - dm1.time);
+        if(data_des.ends[i].state == Centroid::ContactState::Free){
+		    vec3_t anglem1 = ToRollPitchYaw(dm1.ends[i].pos_r);
+		    vec3_t angle1  = ToRollPitchYaw(d1 .ends[i].pos_r);
+            if(angle1.z() > anglem1.z() + _pi)
+                angle1.z() -= 2*_pi;
+            if(angle1.z() < anglem1.z() - _pi)
+                angle1.z() += 2*_pi;
+
+		    data.ends[i].vel_t_ave = (d1.ends[i].pos_t - dm1.ends[i].pos_t)/(d1.time - dm1.time);
+		    data.ends[i].vel_r_ave = (angle1 - anglem1)/(d1.time - dm1.time);
+        }
+        else{
+		    data.ends[i].vel_t_ave = zero3;
+		    data.ends[i].vel_r_ave = zero3;
+        }
 	}
 }
 
@@ -1529,18 +1542,18 @@ void Centroid::Setup(){
 				key->ends[i].con_friction[0][1]->barrier_margin = 0.00001;
 				key->ends[i].con_friction[1][0]->barrier_margin = 0.00001;
 				key->ends[i].con_friction[1][1]->barrier_margin = 0.00001;
-				key->ends[i].con_moment[0][0]->weight[0] = 1.0;
-				key->ends[i].con_moment[0][1]->weight[0] = 1.0;
-				key->ends[i].con_moment[1][0]->weight[0] = 1.0;
-				key->ends[i].con_moment[1][1]->weight[0] = 1.0;
-				key->ends[i].con_moment[2][0]->weight[0] = 1.0;
-				key->ends[i].con_moment[2][1]->weight[0] = 1.0;
-				key->ends[i].con_moment[0][0]->barrier_margin = 0.0001;
-				key->ends[i].con_moment[0][1]->barrier_margin = 0.0001;
-				key->ends[i].con_moment[1][0]->barrier_margin = 0.0001;
-				key->ends[i].con_moment[1][1]->barrier_margin = 0.0001;
-				key->ends[i].con_moment[2][0]->barrier_margin = 0.0001;
-				key->ends[i].con_moment[2][1]->barrier_margin = 0.0001;
+				key->ends[i].con_moment[0][0]->weight[0] = 0.1;
+				key->ends[i].con_moment[0][1]->weight[0] = 0.1;
+				key->ends[i].con_moment[1][0]->weight[0] = 0.1;
+				key->ends[i].con_moment[1][1]->weight[0] = 0.1;
+				key->ends[i].con_moment[2][0]->weight[0] = 0.1;
+				key->ends[i].con_moment[2][1]->weight[0] = 0.1;
+				key->ends[i].con_moment[0][0]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[0][1]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[1][0]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[1][1]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[2][0]->barrier_margin = 0.00001;
+				key->ends[i].con_moment[2][1]->barrier_margin = 0.00001;
 			}
 
 			for(int j = 0; j < nface; j++){
@@ -1722,16 +1735,25 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 					t1 = (d1.ends[i].t_land - param.swingTurnMargin > d1.time ? d1.time : d1.ends[i].t_land - param.swingTurnMargin);
 					_t = std::min(std::max(t0, t), t1);
 
+                    vec3_t angle0 = ToRollPitchYaw(d0.ends[i].pos_r);
+                    vec3_t angle1 = ToRollPitchYaw(d1.ends[i].pos_r);
+
+                    // wrap angle if necessary so that yaw angle difference is smaller than 180deg
+                    if(angle1.z() > angle0.z() + _pi)
+                        angle1.z() -= 2*_pi;
+                    if(angle1.z() < angle0.z() - _pi)
+                        angle1.z() += 2*_pi;
+
 					vec3_t angle = interpolate_pos_cubic(_t, 
-						t0, ToRollPitchYaw(d0.ends[i].pos_r), d0.ends[i].vel_r_ave, 
-						t1, ToRollPitchYaw(d1.ends[i].pos_r), d1.ends[i].vel_r_ave);
+						t0, angle0, d0.ends[i].vel_r_ave, 
+						t1, angle1, d1.ends[i].vel_r_ave);
 					vec3_t angled = interpolate_vel_cubic(_t, 
-						t0, ToRollPitchYaw(d0.ends[i].pos_r), d0.ends[i].vel_r_ave, 
-						t1, ToRollPitchYaw(d1.ends[i].pos_r), d1.ends[i].vel_r_ave);
+						t0, angle0, d0.ends[i].vel_r_ave, 
+						t1, angle1, d1.ends[i].vel_r_ave);
 					d.ends[i].pos_r = FromRollPitchYaw(angle);
 					d.ends[i].vel_r = VelocityFromRollPitchYaw(angle, angled);
-					//d.ends[i].pos_r = InterpolateOri   (t, d0.time, d0.ends[i].pos_r, vec3_t(), d1.time, d1.ends[i].pos_r, vec3_t(), Interpolate::SlerpDiff);
-					//d.ends[i].vel_r = InterpolateAngvel(t, d0.time, d0.ends[i].pos_r, vec3_t(), d1.time, d1.ends[i].pos_r, vec3_t(), Interpolate::SlerpDiff);
+					//d.ends[i].pos_r = interpolate_slerp_diff (t, t0, d0.ends[i].pos_r, t1, d1.ends[i].pos_r);
+					//d.ends[i].vel_r = interpolate_angvel_diff(   t0, d0.ends[i].pos_r, t1, d1.ends[i].pos_r);
 				}
 				else{
 				    const real_t _2pi = 2.0*_pi;
@@ -1761,11 +1783,9 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 					    Eigen::AngleAxisd qrel(d0.ends[i].pos_r_lift_local.conjugate()*d1.ends[i].pos_r_land_local);
 					    vec3_t axis   = qrel.axis ();
 					    real_t theta  = qrel.angle();
-					    if(theta > _pi)
-						    theta -= 2*_pi;
-				
-					    quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
-					    vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
+					    
+					    quat_t qe = d0.ends[i].pos_r_lift_local*rot_quat((ch*theta)*axis);
+					    vec3_t we = d0.ends[i].pos_r_lift_local*((chd*theta)*axis);
 
 					    d.ends[i].pos_t = d.pos_t + d.pos_r*pe;
 					    d.ends[i].pos_r = d.pos_r*qe;
@@ -1778,11 +1798,11 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 						s = (pc - p0)*(p1 - p0)/||p1 - p0||^2
 						*/
 						// calc side sway based on distance between straight swing line and support foot
+						/*
 						vec2_t p0(d0.ends[i].pos_t_lift.x(), d0.ends[i].pos_t_lift.y());
 						vec2_t p1(d1.ends[i].pos_t_land.x(), d1.ends[i].pos_t_land.y());
 						vec2_t psup(d0.ends[!i].pos_t.x(), d0.ends[!i].pos_t.y());
-						vec2_t swh = zero2;
-						/*real_t s = (psup - p0)*(p1 - p0)/(p1 - p0).square();
+                        real_t s = (psup - p0)*(p1 - p0)/(p1 - p0).square();
 						if(0.0 < s && s < 1.0){
 							vec2_t psup_proj = p0 + s*(p1 - p0);
 							const real_t th = 0.1;
@@ -1791,6 +1811,7 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 								swh = ((th - r)/r)*(psup_proj - psup);
 							}
 						}*/
+						vec2_t swh = zero2;
 						
 						vec3_t pe = d0.ends[i].pos_t_lift + ch *(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cv *sw)*nz + (cv )*vec3_t(swh.x(), swh.y(), 0.0);
 						vec3_t ve =                         chd*(d1.ends[i].pos_t_land - d0.ends[i].pos_t_lift) + (cvd*sw)*nz + (cvd)*vec3_t(swh.x(), swh.y(), 0.0);
@@ -1798,9 +1819,10 @@ void Centroid::CalcState(real_t t, const CentroidData& d0, const CentroidData& d
 						Eigen::AngleAxisd qrel(d0.ends[i].pos_r_lift.conjugate()*d1.ends[i].pos_r_land);
 					    vec3_t axis   = qrel.axis ();
 					    real_t theta  = qrel.angle();
-					    if(theta > _pi)
-						    theta -= 2*_pi;
-								
+        		        //if(std::abs(theta) > _pi/2){
+                        //    printf("exceeds pi!: theta: %f  axis: %f %f %f\n", theta, axis.x(), axis.y(), axis.z());
+                        //}
+
 						quat_t qe = d0.ends[i].pos_r_lift*rot_quat((ch*theta)*axis);
 						vec3_t we = d0.ends[i].pos_r_lift*((chd*theta)*axis);
 
@@ -2566,8 +2588,6 @@ void CentroidPosConR::CalcDeviation(){
 	Eigen::AngleAxisd qerror(obj[0]->data.q_rhs.back().conjugate()*obj[1]->data.pos_r);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
-	if(theta > _pi)
-		theta -= 2*_pi;
 
 	y = (1.0/2.0)*(obj[0]->data.q_rhs.back()*(theta*axis) + obj[1]->data.pos_r*(theta*axis));
 }
@@ -2589,9 +2609,7 @@ void CentroidEndPosConR::CalcDeviation(){
 	Eigen::AngleAxisd qerror(qe_rhs.conjugate()*qe_lhs);
 	vec3_t axis   = qerror.axis ();
 	real_t theta  = qerror.angle();
-	if(theta > _pi)
-		theta -= 2*_pi;
-
+	
 	y = (1.0/2.0)*(qe_rhs*(theta*axis) + qe_lhs*(theta*axis));
 }
 
@@ -2627,6 +2645,7 @@ void CentroidEndFrictionCon::CalcDeviation(){
 void CentroidEndMomentCon::CalcDeviation(){
 	y[0] = df.dot(f) + deta.dot(eta);
 	//y[0] = dir*(eta - bound*f.z);
+    active = (obj->data_des.ends[iend].iface != -1 && y[0] < 0.0);
 }
 
 }
