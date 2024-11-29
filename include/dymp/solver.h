@@ -4,6 +4,7 @@
 #include <dymp/id.h>
 #include <dymp/blas.h>
 #include <dymp/timer.h>
+#include <dymp/util.h>
 
 namespace dymp{;
 
@@ -301,7 +302,7 @@ public:
 
 	/** @brief	set correction rate
 	 */
-	void SetCorrection(ID mask, real_t rate, real_t lim = FLT_MAX);
+	void SetCorrection(ID mask, real_t rate, real_t lim = inf);
 
 	/** @brief	set constraint weight
 	    @param  mask    constraint id mask

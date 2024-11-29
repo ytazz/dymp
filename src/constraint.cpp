@@ -20,7 +20,7 @@ Constraint::Constraint(Solver* solver, int n, ID _id, int _type, real_t _scale):
 	scale_inv  = 1.0 / scale;
 	scale2_inv = scale_inv * scale_inv;
 	corrRate   = 0.1;
-	corrMax    = FLT_MAX;
+	corrMax    = inf;
 
 	solver->AddCon(this);
 }

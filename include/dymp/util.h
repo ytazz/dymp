@@ -244,8 +244,8 @@ public:
 
 class curve_quat_t : public curve_t<quat_t, vec3_t, real_t>{
 public:
-    typedef typename curve_t<quat_t, vec3_t, real_t> base_t;
-	typedef typename curve_t<quat_t, vec3_t, real_t>::point_t point_t;
+    typedef curve_t<quat_t, vec3_t, real_t> base_t;
+	typedef curve_t<quat_t, vec3_t, real_t>::point_t point_t;
 
 	quat_t CalcPos(real_t t){
 		std::pair<int,int> seg = GetSegment(t);
