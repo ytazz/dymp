@@ -28,12 +28,15 @@ endif()
 if(UNIX)
 	set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof -Wno-sign-compare -Wno-delete-non-virtual-dtor -Wno-reorder")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -fPIC")
 	set(CMAKE_CXX_FLAGS_DEBUG "-g")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 endif()
 
 #find_package(Boost  REQUIRED)
 find_package(Eigen3 REQUIRED)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(MKL    REQUIRED)
 
 if(DYMP_BUILD_SAMPLE)
