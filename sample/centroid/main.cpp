@@ -89,8 +89,8 @@ public:
         //taskSelect = Task::LongJump;
         //taskSelect = Task::Backflip;
         //taskSelect = Task::Turn;
-        gaitSelect = Gait::WalkWithDoubleSupport;
-        //gaitSelect = Gait::Run;
+        //gaitSelect = Gait::WalkWithDoubleSupport;
+        gaitSelect = Gait::Run;
         //gaitSelect = Gait::TrotWithQuadSupport;
         //gaitSelect = Gait::TrotWithoutQuadSupport;
         //gaitSelect = Gait::Pace;
@@ -171,25 +171,24 @@ public:
         centroid->param.I(0,0) = 5.0;
         centroid->param.I(1,1) = 5.0;
         centroid->param.I(2,2) = 5.0;
-        centroid->param.swingHeight = 0.15;
-        centroid->param.mu = 1.0;
+        //centroid->param.mu = 1.0;
 
         centroid->param.durationMin = 0.3;
         centroid->param.durationMax = 0.7;
 
-        centroid->param.contactMargin = 0.0;
         centroid->param.complWeight   = 1000.0;
 
         centroid->param.enableRotation   = true;
         centroid->param.rotationResolution = 10;
-        //centroid->param.endInterpolation = DiMP::Centroid::EndInterpolation::Local;
+        //centroid->param.endInterpolation = Centroid::EndInterpolation::Polynomial;
+        //centroid->param.endInterpolation = Centroid::EndInterpolation::CycloidLocal;
         centroid->param.endInterpolation = Centroid::EndInterpolation::CycloidGlobal;
         centroid->param.endWrenchParametrization = Centroid::EndWrenchParametrization::Stiffness;
         //centroid->param.endWrenchParametrization = Centroid::EndWrenchParametrization::Direct;
         
         // create geometry
-        centroid->param.bodyRangeMin = vec3_t(-0.05, -0.05,  0.0);
-        centroid->param.bodyRangeMax = vec3_t( 0.05,  0.05,  0.5);
+        //centroid->param.bodyRangeMin = vec3_t(-0.05, -0.05,  0.0);
+        //centroid->param.bodyRangeMax = vec3_t( 0.05,  0.05,  0.5);
 		
 	    Centroid::Face face;
         // flat ground
@@ -269,12 +268,10 @@ public:
             
             if(sceneSelect == Scene::Flat){
                 startPos = vec3_t(0.0, 0.0, comHeight);
-		        startOri = vec3_t(0.0, 0.0, 0.0);
+		        startOri = zero3;
                 if(robotSelect == Robot::Biped){
-		            //goalPos  = vec3_t(3.0, 0.0, comHeight);
-                    goalPos  = vec3_t(5.0, 0.0, comHeight);
-                    goalOri  = vec3_t(0.0, 0.0, deg_to_rad(0.0));
-		            //goalOri  = vec3_t(0.0, 0.0, Rad(180.0));
+		            goalPos  = vec3_t(5.0, 0.0, comHeight);
+                    goalOri  = zero3;
                 }
                 if(robotSelect == Robot::Humanoid){
 		            goalPos  = vec3_t(3.0, 3.0, comHeight);
@@ -282,7 +279,7 @@ public:
                 }
                 if(robotSelect == Robot::Quadruped){
 		            goalPos  = vec3_t(3.0, 0.0, comHeight);
-		            goalOri  = vec3_t(0.0, 0.0, 0.0);
+		            goalOri  = zero3;
                 }
 
                 if(robotSelect == Robot::Biped){
@@ -351,7 +348,7 @@ public:
                         centroid->phases = {
                             {{ 0,  0}, ndiv_dsp},
                             {{ 0, -1}, ndiv_ssp},
-                            {{-1, -1}, ndiv_fp},
+                            {{ 0,  0}, ndiv_dsp},
                             {{-1,  0}, ndiv_ssp},
                             {{-1, -1}, ndiv_fp},
                             {{ 0, -1}, ndiv_ssp},
@@ -371,7 +368,7 @@ public:
                             {{-1,  0}, ndiv_ssp},
                             {{-1, -1}, ndiv_fp},
                             {{ 0, -1}, ndiv_ssp},
-                            {{-1, -1}, ndiv_fp},
+                            {{ 0,  0}, ndiv_dsp},
                             {{-1,  0}, ndiv_ssp},
                             {{ 0,  0}, ndiv_dsp}
                         };
@@ -532,11 +529,11 @@ public:
             {
                 Centroid::Waypoint& wp = centroid->waypoints[0];
                 wp.value  = Centroid::Waypoint::Value (0.0, dt, startPos, startOri, zero3, zero3);
-                wp.weight = Centroid::Waypoint::Weight(10.0, 1.0, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
+                wp.weight = Centroid::Waypoint::Weight(10.0, 10.0, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, 0.01*one3, one3);
                 }
             }
             {
@@ -548,10 +545,10 @@ public:
                 wp.weight.L     = 10*one3;
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-                    wp.ends[iend].weight.pos_t  = 1*one3;
-                    wp.ends[iend].weight.pos_r  = 1*one3;
-                    wp.ends[iend].weight.vel_t  = 1.0*one3;
-                    wp.ends[iend].weight.vel_r  = 1.0*one3;
+                    wp.ends[iend].weight.pos_t  = one2;
+                    wp.ends[iend].weight.pos_r  = 1.0;
+                    wp.ends[iend].weight.vel_t  = one2;
+                    wp.ends[iend].weight.vel_r  = 1.0;
                 }
             }
             {
@@ -563,20 +560,20 @@ public:
                 wp.weight.vel_t = 10*one3;
                 wp.weight.L     = 10*one3;
                 for(int iend = 0; iend < nend; iend++){
-                    wp.ends[iend].weight.pos_t  = 1*one3;
-                    wp.ends[iend].weight.pos_r  = 1*one3;
-                    wp.ends[iend].weight.vel_t  = 1*one3;
-                    wp.ends[iend].weight.vel_r  = 1*one3;
+                    wp.ends[iend].weight.pos_t  = one2;
+                    wp.ends[iend].weight.pos_r  = 1.0;
+                    wp.ends[iend].weight.vel_t  = one2;
+                    wp.ends[iend].weight.vel_r  = 1.0;
                 }
             }
             {
                 Centroid::Waypoint& wp = centroid->waypoints[N];
                 wp.value  = Centroid::Waypoint::Value (dt*N, dt, goalPos, goalOri, zero3, zero3);
-                wp.weight = Centroid::Waypoint::Weight(1.0, 1.0, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
+                wp.weight = Centroid::Waypoint::Weight(1.0, 10.0, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos + FromRollPitchYaw(goalOri)*(endConf[iend].basePos + endConf[iend].posOrigin), goalOri, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1.0*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos.head(2) + Eigen::Rotation2D(goalOri.z())*(endConf[iend].basePos + endConf[iend].posOrigin).head(2), goalOri.z(), zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, 0.1*one3, one3);
                 }
             }
         }
@@ -587,7 +584,7 @@ public:
 		        startOri = vec3_t(0.0, 0.0, 0.0);
                 if(robotSelect == Robot::Biped){
 		            goalPos  = vec3_t(1.0, 0.0, comHeight);
-		            goalOri  = vec3_t(0.0, 0.0, deg_to_rad(0.0));
+		            goalOri  = zero3;
                     int ndiv_dsp = 1;
                     centroid->phases = {
                         {{ 0,  0}, ndiv_dsp},
@@ -608,8 +605,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(10.0, 1, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1.0*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, one3, one3);
                 }
             }
             {
@@ -621,8 +618,8 @@ public:
                 wp.weight.L     = 1*one3;
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-                    wp.ends[iend].weight.pos_t  = 1*one3;
-                    wp.ends[iend].weight.vel_t  = 1*one3;
+                    wp.ends[iend].weight.pos_t  = 1*one2;
+                    wp.ends[iend].weight.vel_t  = 1*one2;
                 }
             }
             {
@@ -634,8 +631,8 @@ public:
                 wp.weight.vel_t = 1*one3;
                 wp.weight.L     = 1*one3;
                 for(int iend = 0; iend < nend; iend++){
-                    wp.ends[iend].weight.pos_t  = 1*one3;
-                    wp.ends[iend].weight.vel_t  = 1*one3;
+                    wp.ends[iend].weight.pos_t  = 1*one2;
+                    wp.ends[iend].weight.vel_t  = 1*one2;
                 }
             }
             {
@@ -644,8 +641,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(1, 1, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1.0*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((goalPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, one3, one3);
                 }
             }
         }
@@ -682,8 +679,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(1.0, 1, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1.0*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, one3, one3);
                 }
             }
             {
@@ -692,8 +689,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(1, 1, 1.0*one3, one3, 1.0*one3, one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one3,1*one3,1*one3,1*one3, 1.0, 1*one2, 1*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one2,1,1*one2,1, 1.0, 1*one2, 1*one2, 1, one3, one3);
                 }
             }
             {
@@ -702,8 +699,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(inf, inf, 1.0*one3, one3, 1.0*one3, one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one3,1*one3,1*one3,1*one3, 1.0, 1*one2, 1*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one2,1,1*one2,1, 1.0, 1*one2, 1*one2, 1, one3, one3);
                 }
             }
             {
@@ -712,8 +709,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(inf, inf, one3, one3, one3, one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (startPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(one3, one3, one3, one3, 1.0, 0.1*one2, one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((startPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(one2, 1.0, one2, 1.0, 1.0, 0.1*one2, 1.0*one2, 1.0, one3, one3);
                 }
             }
             {
@@ -722,8 +719,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(inf, inf, one3, one3, one3, one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(one3, one3, one3, one3, 1.0, one2, one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((goalPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(one2, 1.0, one2, 1.0, 1.0, one2, one2, 1.0, one3, one3);
                 }
             }
             {
@@ -732,8 +729,8 @@ public:
                 wp.value  = Centroid::Waypoint::Value (inf, inf, goalPos, goalOri, inf3, zero3);
                 wp.weight = Centroid::Waypoint::Weight(inf, inf, one3, one3, one3, one3);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one3,1*one3,1*one3,1*one3, 1.0, 1*one2, 1*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((goalPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(1*one2,1,1*one2,1, 1, 1*one2, 1*one2, 1, one3, one3);
                 }
             }
             {
@@ -742,8 +739,8 @@ public:
                 wp.weight = Centroid::Waypoint::Weight(1, 1, 10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3);
                 wp.ends.resize(nend);
                 for(int iend = 0; iend < nend; iend++){
-		            wp.ends[iend].value  = Centroid::Waypoint::End::Value (goalPos + endConf[iend].basePos + endConf[iend].posOrigin, zero3, zero3, zero3, infi);
-                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one3, 10.0*one3, 10.0*one3, 10.0*one3, 1.0, 1.0*one2, 1.0*one3);
+		            wp.ends[iend].value  = Centroid::Waypoint::End::Value ((goalPos + endConf[iend].basePos + endConf[iend].posOrigin).head(2), 0.0, zero2, 0.0, infi);
+                    wp.ends[iend].weight = Centroid::Waypoint::End::Weight(10.0*one2, 10.0, 10.0*one2, 10.0, 1.0, 1.0*one2, 1.0*one2, 1.0, one3, one3);
                 }
             }
         }
@@ -754,13 +751,9 @@ public:
             centroid->ends[iend].posMax  = endConf[iend].posMax; 
 		    centroid->ends[iend].copMin  = vec3_t(-0.05, -0.01, -0.05);
 		    centroid->ends[iend].copMax  = vec3_t( 0.05,  0.01,  0.05);
-
             centroid->ends[iend].stiffnessMax = endConf[iend].stiffMax;
-            centroid->ends[iend].cmpOffset  = endConf[iend].cmpOffset;
             centroid->ends[iend].lockOri    = false;
-            centroid->ends[iend].lockCmp    = false;
-            centroid->ends[iend].lockMoment = false;
-	    }
+        }
                 
         int N = centroid->NumSteps();
 	    for(int k = 0; k <= N; k++)
@@ -781,15 +774,33 @@ public:
         //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndPos    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndVel    ), false);
 	    //graph->solver->Enable(ID(DiMP::ConTag::CentroidEndStiff  ), false);
-	    //world->solver->Enable(ID(ConTag::CentroidEndPosRange  ), false);
-	    //world->solver->Enable(ID(ConTag::CentroidEndContact), false);
-        world->solver->Enable(ID(ConTag::CentroidEndFriction), false);
+        //world->solver->Enable(ID(ConTag::CentroidDesPosT), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesPosR), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesVelT), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesVelR), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesMomentum), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesTime), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesDuration), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndPosT), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndVelT), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndPosR), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndVelR), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndStiff), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndCop), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndCmp), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndTorsion), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndForce), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesEndMoment), false);
+	    //world->solver->Enable(ID(ConTag::CentroidDesDuration), false);
+	    world->solver->Enable(ID(ConTag::CentroidDurationRange), false);
+	    world->solver->Enable(ID(ConTag::CentroidEndPosRange  ), false);
+	    world->solver->Enable(ID(ConTag::CentroidEndFriction), false);
 	    world->solver->Enable(ID(ConTag::CentroidEndMomentRange), false);
         
         world->solver->SetCorrection(ID(), 0.5);
         world->solver->param.method = Solver::Method::DDP;
-	    world->solver->param.regularization = 10;
-	    world->solver->param.stateRegularization = 10;
+	    world->solver->param.regularization = 1;
+	    world->solver->param.stateRegularization = 1;
         world->solver->param.hastyStepSize  = false;
 	    world->solver->param.cutoffStepSize = 0.1;
 	    world->solver->param.minStepSize    = 1.0;
@@ -893,16 +904,16 @@ public:
                 auto& dend = d.ends[i];
 
                 fprintf(file,
-                    "%f, %f, %f, "
-                    "%f, %f, %f, ",
-                    dend.pos_t.x(), dend.pos_t.y(), dend.pos_t.z(), 
-                    dend.vel_t.x(), dend.vel_t.y(), dend.vel_t.z()
+                    "%f, %f, "
+                    "%f, %f, ",
+                    dend.pos_t.x(), dend.pos_t.y(), 
+                    dend.vel_t.x(), dend.vel_t.y()
                 );
                 fprintf(file,
-                    "%f, %f, %f, "
-                    "%f, %f, %f, ",
-                    dend.pos_r.x(), dend.pos_r.y(), dend.pos_r.z(), 
-                    dend.vel_r.x(), dend.vel_r.y(), dend.vel_r.z()
+                    "%f, "
+                    "%f, ",
+                    dend.pos_r, 
+                    dend.vel_r
                 );
                 fprintf(file,
                     "%f, %f, %f, "
@@ -981,16 +992,16 @@ public:
                 //mom += (d.ends[i].pos_t - d.pos_t) % d.ends[i].force_t + d.ends[i].force_r;
             
                 fprintf(file,
-                    "%f, %f, %f, "
-                    "%f, %f, %f, %f, "
-                    "%f, %f, %f, "
-                    "%f, %f, %f, "
+                    "%f, %f, "
+                    "%f, "
+                    "%f, %f, "
+                    "%f, "
                     "%f, %f, %f, "
                     "%f, %f, %f, ",
-                    d.ends[i].pos_t.x(), d.ends[i].pos_t.y(), d.ends[i].pos_t.z(), 
-                    d.ends[i].pos_r.w(), d.ends[i].pos_r.x(), d.ends[i].pos_r.y(), d.ends[i].pos_r.z(),
-                    d.ends[i].vel_t.x(), d.ends[i].vel_t.y(), d.ends[i].vel_t.z(), 
-                    d.ends[i].vel_r.x(), d.ends[i].vel_r.y(), d.ends[i].vel_r.z(),
+                    d.ends[i].pos_t.x(), d.ends[i].pos_t.y(), 
+                    d.ends[i].pos_r,
+                    d.ends[i].vel_t.x(), d.ends[i].vel_t.y(), 
+                    d.ends[i].vel_r,
                     d.ends[i].force_t.x(), d.ends[i].force_t.y(), d.ends[i].force_t.z(),
                     d.ends[i].force_r.x(), d.ends[i].force_r.y(), d.ends[i].force_r.z()
                 );    

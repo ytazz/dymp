@@ -16,13 +16,11 @@ struct WholebodyJointAccCon;
 struct WholebodyCentroidPosConT;
 struct WholebodyCentroidVelConT;
 struct WholebodyCentroidPosConR;
-//struct WholebodyCentroidVelConR;
 struct WholebodyCentroidLCon;
 struct WholebodyDesPosConT;
 struct WholebodyDesPosConR;
 struct WholebodyDesVelConT;
 struct WholebodyDesVelConR;
-//struct WholebodyDesLCon;
 struct WholebodyContactPosConT;
 struct WholebodyContactPosConR;
 struct WholebodyContactVelConT;
@@ -49,8 +47,8 @@ struct WholebodyData{
 	};
 
 	struct End{
-		vec3_t  pos_t, pos_t_abs, pos_tc, pos_te;
-		quat_t  pos_r, pos_r_abs, pos_rc;
+		vec3_t  pos_t, pos_t_abs;
+		quat_t  pos_r, pos_r_abs;
 		vec3_t  vel_t, vel_t_abs;
 		vec3_t  vel_r, vel_r_abs;
 		vec3_t  acc_t;
@@ -64,6 +62,8 @@ struct WholebodyData{
 		
 		int     state;       ///< contact state
 		real_t  mu;          ///< friction
+		vec3_t  pos_tc;      ///< contact point (end local)
+		vec3_t  normal;      ///< contact normal (global)
 		vec3_t  cop_min;
 		vec3_t  cop_max;
 
@@ -73,9 +73,6 @@ struct WholebodyData{
     struct Joint{
         real_t q, qd, qdd, qddd, tau;
 	    real_t q_weight, qd_weight, qdd_weight, qddd_weight;
-	    //real_t q_min, q_max;
-	    //real_t qd_min, qd_max;
-	    //real_t qdd_min, qdd_max;
         real_t q_range_weight, qd_range_weight, qdd_range_weight;
     };
 
@@ -90,10 +87,8 @@ struct WholebodyData{
 		vec3_t pos_r_weight;
 		vec3_t vel_t_weight;
         vec3_t L_weight;
-		//vec3_t vel_r_weight;
 		vec3_t acc_t_weight;
         vec3_t Ld_weight;
-		//vec3_t acc_r_weight;
 		vec3_t L_local, Ld_local, L_abs;                     ///< momentum (local) and its derivative
 		mat3_t I_local, Id_local, I_abs, Id_abs, I_abs_inv;  ///< inertia matrix around com and its inverse
 
@@ -105,8 +100,8 @@ struct WholebodyData{
 	std::vector<Link>  links;
     std::vector<Joint> joints;
 	
-	Matrix          Jcom, Hcom;
-	std::vector<Matrix>  Jfk, Hfk;
+	Matrix          Jcom;
+	std::vector<Matrix>  Jfk;
 	
 	void Init        (Wholebody* wb);
 	void InitJacobian(Wholebody* wb);
@@ -130,8 +125,6 @@ public:
 		WholebodyDesPosConR*  con_des_pos_r  ;   ///< desired orientation
 		WholebodyDesVelConT*  con_des_vel_t  ;   ///< desired velocity
 		WholebodyDesVelConR*  con_des_vel_r  ;   ///< desired angular velocity
-		//FixConV3*             con_des_acc_t  ;   ///< desired acceleration (local)
-		//FixConV3*             con_des_acc_r  ;   ///< desired angular acceleration
 		FixConV3*             con_des_force_t;   ///< desired force (contact frame)
 		FixConV3*             con_des_force_r;   ///< desired moment
 		
@@ -149,28 +142,22 @@ public:
 		V3Var*  var_pos_t;
 		QVar*   var_pos_r;
 		V3Var*  var_vel_t;
-		//V3Var*  var_vel_r;
         V3Var*  var_L;
 		V3Var*  var_acc_t;
-		//V3Var*  var_acc_r;
         V3Var*  var_Ld;
 
 		WholebodyCentroidPosConT*  con_pos_t;
 		WholebodyCentroidPosConR*  con_pos_r;
 		WholebodyCentroidVelConT*  con_vel_t;
         WholebodyCentroidLCon*     con_L;
-		//WholebodyCentroidVelConR*  con_vel_r;
 
 		FixConV3*  con_des_pos_t;
 		FixConQ*   con_des_pos_r;
 		FixConV3*  con_des_vel_t;
         FixConV3*  con_des_L;
-		//FixConV3*  con_des_vel_r;
 		FixConV3*  con_des_acc_t;
         FixConV3*  con_des_Ld;
-		//FixConV3*  con_des_acc_r;
 
-		//WholebodyLCon*         con_L;
 	};
 
 	struct Joint{
@@ -202,16 +189,15 @@ public:
 	std::vector<Joint>  joints;
 
 	// working variables
-	quat_t          q0;
-	mat3_t          R0;
+	//quat_t          q0;
+	//mat3_t          R0;
 	std::vector<vec3_t>  re, fe, me;
 	std::vector<mat3_t>  rec;
 	vec3_t          fsum, msum;
 	Matrix          J_L_q, J_L_qd;
 	Matrix          J_Ld_q, J_Ld_qdd;
 	Matrix          mj_pjc, mj_vjc, mj_ajc, Ij;
-	std::vector<Matrix>  R0_Jfk, R0_Hfk;
-
+	
 public:	
     virtual void AddVar(Solver* solver);
 	virtual void AddCon(Solver* solver);
@@ -283,7 +269,7 @@ public:
 		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		real_t       mass;         ///< mass of link
 		real_t       mass_ratio;
-		mat3_t       inertia;
+		mat3_t       inertia, inertia_with_rotor;
 		vec3_t       center;
 		int          iparent;      ///< parent link index
 		std::vector<int>  ichildren;    ///< child link indices
@@ -467,11 +453,11 @@ struct WholebodyCentroidVelConT : WholebodyCon{
 
 struct WholebodyCentroidPosConR : WholebodyCon{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	quat_t q1, q_rhs, q_omega;
+	quat_t q0, q1, q_rhs, q_omega;
 	vec3_t w0, u0, L, Ld, omega;
 	mat3_t Id, Iinv;
 	real_t h, h2;
-	mat3_t R_omega, A_omega;
+	mat3_t R0, R_omega, A_omega;
 	
 	void Prepare();
 
@@ -492,26 +478,13 @@ struct WholebodyCentroidLCon : WholebodyCon{
 		
 	WholebodyCentroidLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
 };
-/*
-struct WholebodyCentroidVelConR : WholebodyCon{
-	vec3_t pc, w0, u0, w1, w_rhs, L, Ld;
-	mat3_t Id, Iinv;
-	real_t h;
-	
-	void Prepare();
 
-	virtual void  CalcCoef();
-	virtual void  CalcDeviation();
-		
-	WholebodyCentroidVelConR(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
-};
-*/
 struct WholebodyDesPosConT : Constraint{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
-	vec3_t pc, pe, oe, pi, ci, r;
+	vec3_t pc, pe, pe_abs, oe, pi, ci, r;
 	quat_t q0, qi;
 	mat3_t R0;
 	
@@ -528,7 +501,7 @@ struct WholebodyDesPosConR : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
 	quat_t desired;
-	quat_t q0, qe;
+	quat_t q0, qe, qe_abs;
 	mat3_t R0;
 
 	void Prepare();
@@ -544,7 +517,7 @@ struct WholebodyDesVelConT : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
-	vec3_t vc, w0, ve, oe, pi, ci, r, pi_abs;
+	vec3_t vc, w0, ve, ve_abs, oe, pi, ci, r, pe;
 	quat_t q0, qi;
 	mat3_t R0, Iinv;
 
@@ -561,7 +534,7 @@ struct WholebodyDesVelConR : Constraint{
 	WholebodyKey*  obj;
 	int    iend;
 	vec3_t desired;
-	vec3_t w0, we;
+	vec3_t w0, we, we_abs;
 	quat_t q0;
 	mat3_t R0, Iinv;
 	
@@ -572,27 +545,25 @@ struct WholebodyDesVelConR : Constraint{
 		
 	WholebodyDesVelConR(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale);
 };
-/*
-struct WholebodyLCon : Constraint{
-	WholebodyKey*  obj;
-	vec3_t  desired;
-	mat3_t  Rf;
-	
-	void Prepare();
 
-	virtual void  CalcCoef();
-	virtual void  CalcDeviation();
-	
-	WholebodyLCon(Solver* solver, string _name, WholebodyKey* _obj, real_t _scale);
-};
-*/
-struct WholebodyContactPosConT : Constraint{
+struct WholebodyContactCon : Constraint{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	WholebodyKey*  obj;
 	int    iend;
-	vec3_t pc, pi, po, r;
-	quat_t q0, qi, qo;
-	mat3_t R0, Ro;
+	vec3_t po, r;
+	quat_t qo;
+	mat3_t Ro;
+
+	void Prepare();
+
+	WholebodyContactCon(Solver* solver, string _name, WholebodyKey* _obj, int _tag, int _iend, real_t _scale);
+};
+
+struct WholebodyContactPosConT : WholebodyContactCon{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	vec3_t pc, pe;
+	quat_t q0, qe;
+	mat3_t R0;
 
 	void Prepare();
 
@@ -602,12 +573,10 @@ struct WholebodyContactPosConT : Constraint{
 	WholebodyContactPosConT(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale);
 };
 
-struct WholebodyContactPosConR : Constraint{
+struct WholebodyContactPosConR : WholebodyContactCon{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	WholebodyKey*  obj;
-	int    iend;
-	quat_t q0, qi, qo;
-	mat3_t R0, Ro;
+	quat_t q0, qe;
+	mat3_t R0;
 	
 	void Prepare();
 
@@ -617,13 +586,11 @@ struct WholebodyContactPosConR : Constraint{
 	WholebodyContactPosConR(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale);
 };
 
-struct WholebodyContactVelConT : Constraint{
+struct WholebodyContactVelConT : WholebodyContactCon{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	WholebodyKey*  obj;
-	int    iend;
-	vec3_t vc, w0, pi, vi, wi, po, r;
-	quat_t q0, qi, qo;
-	mat3_t R0, Ro, Iinv;
+	vec3_t vc, w0, pe, ve, we;
+	quat_t q0, qe;
+	mat3_t R0, Iinv;
 	
 	void Prepare();
 
@@ -633,13 +600,11 @@ struct WholebodyContactVelConT : Constraint{
 	WholebodyContactVelConT(Solver* solver, string _name, WholebodyKey* _obj, int _iend, real_t _scale);
 };
 
-struct WholebodyContactVelConR : Constraint{
+struct WholebodyContactVelConR : WholebodyContactCon{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	WholebodyKey*  obj;
-	int    iend;
-	quat_t q0, qi, qo;
-	mat3_t R0, Ro, Iinv;
-	vec3_t w0, wi;
+	quat_t q0, qe;
+	mat3_t R0, Iinv;
+	vec3_t w0, we;
 	
 	void Prepare();
 

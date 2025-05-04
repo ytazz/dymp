@@ -19,4 +19,7 @@ namespace dymp{
     // time derivative of roll-pitch-yaw to angular velocity
     vec3_t VelocityFromRollPitchYaw(const vec3_t& angle, const vec3_t& angled);
 
+    // jacobian from rpy derivative to angular velocity
+    mat3_t JacobianFromRollPitchYaw(const vec3_t& angle);
+
 }

@@ -38,4 +38,16 @@ vec3_t VelocityFromRollPitchYaw(const vec3_t& angle, const vec3_t& angled){
 	return wz + qz*wy + qzy*wx;
 }
 
+mat3_t JacobianFromRollPitchYaw(const vec3_t& angle){
+	AngleAxisd qz  = AngleAxisd(angle.z(), ez);
+	quat_t     qzy = qz*AngleAxisd(angle.y(), ey);
+	
+	mat3_t J;
+	J.col(0) = qzy*ex;
+	J.col(1) = qz*ey;
+	J.col(2) = ez;
+
+	return J;
+}
+
 }
