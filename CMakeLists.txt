@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 2.8.12) # Default version on Ubuntu 14.04
 project(dymp)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+
+# the following line lets cmake to use FindMKL.cmake in this source directory
+# if FindMKL fails to identify correct mkl, specify MKL_ROOT variable directly
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}")
 
 set(CMAKE_CXX_STANDARD 20)
