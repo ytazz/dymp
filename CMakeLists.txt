@@ -7,6 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}")
 
 set(CMAKE_CXX_STANDARD 20)
 
+set(DYMP_USE_GL       false CACHE BOOL "use opengl or not. required for visualization")
 set(DYMP_BUILD_SAMPLE false CACHE BOOL "build sample programs")
 
 if(WIN32)
@@ -39,9 +40,13 @@ find_package(Eigen3 REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(MKL    REQUIRED)
 
-if(DYMP_BUILD_SAMPLE)
+if(DYMP_USE_GL)
+    add_compile_definitions(DYMP_USE_GL)
 	find_package(OpenGL  REQUIRED)
 	find_package(glfw3   REQUIRED)
+endif()
+
+if(DYMP_BUILD_SAMPLE)
 	include_directories(${GLFW_INCLUDE_DIR})
 endif()
 
@@ -86,14 +91,16 @@ set(DYMP_HEADERS
   include/dymp/world.h
   )
 
-if(DYMP_BUILD_SAMPLE)
+if(DYMP_USE_GL)
 	set(DYMP_SOURCES
 		${DYMP_SOURCES}
 		src/app.cpp
+        src/canvas_gl.cpp
 		)
 	set(DYMP_HEADERS
 		${DYMP_HEADERS}
 		include/dymp/app.h
+        include/dymp/canvas_gl.h
 		)	
 endif()
 

@@ -2,6 +2,7 @@
 
 #include <dymp/types.h>
 #include <dymp/world.h>
+#include <dymp/canvas_gl.h>
 
 #include <GLFW/glfw3.h>
 
