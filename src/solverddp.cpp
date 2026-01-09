@@ -527,6 +527,48 @@ void Solver::CalcCostGradientDDP(){
 		timer4.CountUS();
 		
 		//
+		for(auto&& subcost : cost[k]->subcost){     
+			if(subcost->index == -1)
+				continue;
+			if(!subcost->con->active)
+				continue;
+			
+			int n  = subcost->con->nelem;
+			int nx = subcost->xend - subcost->xbegin;
+
+			if(nx > 0){
+				mattr_vec_mul(
+					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					cost[k]->b .SubVector(subcost->index, n),
+					Lx[k].SubVector(subcost->xbegin, nx), 1.0, 1.0);
+				mattr_mat_mul(
+					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
+					Lxx[k].SubMatrix(subcost->xbegin, subcost->xbegin, nx, nx), 1.0, 1.0);
+			}
+			
+			if(k < N){
+				int nu = subcost->uend - subcost->ubegin;
+				if(nu > 0){	
+					mattr_vec_mul(
+						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						cost[k]->b .SubVector(subcost->index, n),
+						Lu[k].SubVector(subcost->ubegin, nu), 1.0, 1.0);
+					mattr_mat_mul(
+						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+						Luu[k].SubMatrix(subcost->ubegin, subcost->ubegin, nu, nu), 1.0, 1.0);
+					if(nx > 0){
+						mattr_mat_mul(
+							cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
+							cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx),
+							Lux[k].SubMatrix(subcost->ubegin, subcost->xbegin, nu, nx), 1.0, 1.0);
+					}
+				}
+			}
+        }
+
+        // optionally add custom quadratic cost
 		if(cost[k]->useQuadWeight){
 			// current implementation assumes custom weight is used for terminal cost only
 			// so input cost is ignored
@@ -535,65 +577,23 @@ void Solver::CalcCostGradientDDP(){
 
 			vec_copy(cost[k]->Vy, cost[k]->Vy_plus_Vyy_y);
 			mat_vec_mul(cost[k]->Vyy, cost[k]->y, cost[k]->Vy_plus_Vyy_y, 1.0, 1.0);
-			mattr_vec_mul(cost[k]->Ax, cost[k]->Vy_plus_Vyy_y, Lx[k], 1.0, 0.0);
+			mattr_vec_mul(cost[k]->Ax, cost[k]->Vy_plus_Vyy_y, Lx[k], 1.0, 1.0);
 
 			mattr_mat_mul(cost[k]->Ax, cost[k]->Vyy, cost[k]->Axtr_Vyy, 1.0, 0.0);
-			mat_mat_mul  (cost[k]->Axtr_Vyy, cost[k]->Ax, Lxx[k], 1.0, 0.0);
+			mat_mat_mul  (cost[k]->Axtr_Vyy, cost[k]->Ax, Lxx[k], 1.0, 1.0);
 		}
-		else{
-            for(auto&& subcost : cost[k]->subcost){     
-			    if(subcost->index == -1)
-				    continue;
-			    if(!subcost->con->active)
-				    continue;
-			
-			    int n  = subcost->con->nelem;
-			    int nx = subcost->xend - subcost->xbegin;
-
-			    if(nx > 0){
-				    mattr_vec_mul(
-					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					    cost[k]->b .SubVector(subcost->index, n),
-					    Lx[k].SubVector(subcost->xbegin, nx), 1.0, 1.0);
-				    mattr_mat_mul(
-					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx), 
-					    Lxx[k].SubMatrix(subcost->xbegin, subcost->xbegin, nx, nx), 1.0, 1.0);
-			    }
-			
-			    if(k < N){
-				    int nu = subcost->uend - subcost->ubegin;
-				    if(nu > 0){	
-					    mattr_vec_mul(
-						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						    cost[k]->b .SubVector(subcost->index, n),
-						    Lu[k].SubVector(subcost->ubegin, nu), 1.0, 1.0);
-					    mattr_mat_mul(
-						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-						    Luu[k].SubMatrix(subcost->ubegin, subcost->ubegin, nu, nu), 1.0, 1.0);
-					    if(nx > 0){
-						    mattr_mat_mul(
-							    cost[k]->Au.SubMatrix(subcost->index, subcost->ubegin, n, nu),
-							    cost[k]->Ax.SubMatrix(subcost->index, subcost->xbegin, n, nx),
-							    Lux[k].SubMatrix(subcost->ubegin, subcost->xbegin, nu, nx), 1.0, 1.0);
-					    }
-				    }
-			    }
-            }
-		    /*
-			// calculate using whole dense matrix multiplication
-			// this is expensive considering Ax and Au are highly sparse
-			mattr_vec_mul(cost[k]->Ax, cost[k]->b , Lx[k], 1.0, 0.0);
-			mattr_mat_mul(cost[k]->Ax, cost[k]->Ax, Lxx[k], 1.0, 0.0);
+		/*
+		// calculate using whole dense matrix multiplication
+		// this is expensive considering Ax and Au are highly sparse
+		mattr_vec_mul(cost[k]->Ax, cost[k]->b , Lx[k], 1.0, 0.0);
+		mattr_mat_mul(cost[k]->Ax, cost[k]->Ax, Lxx[k], 1.0, 0.0);
 		
-			if(k < N){
-				mattr_vec_mul(cost[k]->Au, cost[k]->b , Lu [k], 1.0, 0.0);
-				mattr_mat_mul(cost[k]->Au, cost[k]->Au, Luu[k], 1.0, 0.0);
-				mattr_mat_mul(cost[k]->Au, cost[k]->Ax, Lux[k], 1.0, 0.0);
-			}
-			*/
+		if(k < N){
+			mattr_vec_mul(cost[k]->Au, cost[k]->b , Lu [k], 1.0, 0.0);
+			mattr_mat_mul(cost[k]->Au, cost[k]->Au, Luu[k], 1.0, 0.0);
+			mattr_mat_mul(cost[k]->Au, cost[k]->Ax, Lux[k], 1.0, 0.0);
 		}
+		*/
 		
 		int T2 = timer4.CountUS();
 
